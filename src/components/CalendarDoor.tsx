@@ -75,13 +75,16 @@ export const CalendarDoor = ({ day, content, isOpened, onOpen }: CalendarDoorPro
         {/* Back of door (revealed content) */}
         <div
           className={cn(
-            "absolute inset-0 flex items-center justify-center p-4",
-            "bg-card rounded-lg border-2 border-accent",
+            "absolute inset-0 flex flex-col items-center justify-center p-3",
+            "bg-gradient-to-br from-card to-muted rounded-lg border-2 border-accent",
             "transition-opacity duration-300",
             isOpened ? "opacity-100" : "opacity-0"
           )}
         >
-          <p className="text-sm text-center text-card-foreground font-medium">{content}</p>
+          <div className="text-center space-y-2">
+            <div className="text-2xl">😄</div>
+            <p className="text-xs leading-relaxed text-card-foreground font-medium">{content}</p>
+          </div>
         </div>
       </Card>
     </div>
