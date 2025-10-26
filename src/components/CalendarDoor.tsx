@@ -6,11 +6,12 @@ import { Gift } from "lucide-react";
 interface CalendarDoorProps {
   day: number;
   content: string;
+  image: string;
   isOpened: boolean;
   onOpen: () => void;
 }
 
-export const CalendarDoor = ({ day, content, isOpened, onOpen }: CalendarDoorProps) => {
+export const CalendarDoor = ({ day, content, image, isOpened, onOpen }: CalendarDoorProps) => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [showGift, setShowGift] = useState(false);
 
@@ -72,18 +73,35 @@ export const CalendarDoor = ({ day, content, isOpened, onOpen }: CalendarDoorPro
           </div>
         </div>
 
-        {/* Back of door (revealed content) */}
+        {/* Back of door (revealed content with animated image) */}
         <div
           className={cn(
-            "absolute inset-0 flex flex-col items-center justify-center p-3",
+            "absolute inset-0 flex flex-col items-center justify-center p-2 overflow-hidden",
             "bg-gradient-to-br from-card to-muted rounded-lg border-2 border-accent",
             "transition-opacity duration-300",
             isOpened ? "opacity-100" : "opacity-0"
           )}
         >
-          <div className="text-center space-y-2">
-            <div className="text-2xl">😄</div>
-            <p className="text-xs leading-relaxed text-card-foreground font-medium">{content}</p>
+          <div className="text-center space-y-1 w-full">
+            {/* Animated illustration */}
+            <div className="relative w-full h-16 mb-1 flex items-center justify-center">
+              <img
+                src={image}
+                alt="Joke illustration"
+                className={cn(
+                  "max-h-full max-w-full object-contain rounded-lg",
+                  "animate-[scale-in_0.5s_ease-out] hover:scale-110 transition-transform"
+                )}
+                style={{
+                  filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.1))",
+                  animation: "scale-in 0.5s ease-out, float-gentle 2s ease-in-out infinite",
+                }}
+              />
+            </div>
+            {/* Joke text */}
+            <p className="text-[10px] leading-tight text-card-foreground font-medium px-1">
+              {content}
+            </p>
           </div>
         </div>
       </Card>

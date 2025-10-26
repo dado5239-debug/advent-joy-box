@@ -89,19 +89,19 @@ export const TutorialModal = () => {
               <div className="flex items-start gap-3">
                 <MousePointerClick className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
                 <p className="text-sm text-foreground">
-                  <strong>Click any door</strong> to reveal a hilarious Christmas joke
+                  <strong>Click any door</strong> to reveal a hilarious Christmas joke with animated illustration
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <Gift className="w-5 h-5 text-secondary mt-1 flex-shrink-0" />
                 <p className="text-sm text-foreground">
-                  <strong>24 unique jokes</strong> to make you laugh through December
+                  <strong>24 unique jokes</strong> with fun cartoons to make you laugh through December
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-accent mt-1 flex-shrink-0" />
                 <p className="text-sm text-foreground">
-                  <strong>Doors stay open</strong> so you can revisit your favorite messages
+                  <strong>Animated illustrations</strong> that float and bring each joke to life!
                 </p>
               </div>
             </div>

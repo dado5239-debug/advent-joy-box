@@ -34,7 +34,7 @@ const Index = () => {
             <Sparkles className="w-8 h-8 text-accent animate-sparkle" />
           </div>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Unwrap a daily Christmas joke! Click each door to reveal hilarious holiday humor from December 1st to 24th. 🎅😂
+            Unwrap a daily Christmas joke with animated illustrations! Click each door to reveal hilarious holiday humor from December 1st to 24th. 🎅😂
           </p>
           <div className="flex gap-4 justify-center items-center">
             <div className="px-6 py-3 bg-card rounded-full border-2 border-primary/20 shadow-md">
@@ -62,7 +62,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="text-center py-8 border-t border-border/50">
         <p className="text-sm text-muted-foreground">
-          Made with ❤️ for the holiday season • 24 hilarious Christmas jokes to brighten your December! 🎄
+          Made with ❤️ for the holiday season • 24 hilarious Christmas jokes with animated illustrations! 🎄
         </p>
       </footer>
     </div>
