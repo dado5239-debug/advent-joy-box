@@ -1,4 +1,5 @@
 import { AdventCalendar } from "@/components/AdventCalendar";
+import { TutorialModal } from "@/components/TutorialModal";
 import { Button } from "@/components/ui/button";
 import adventHero from "@/assets/advent-hero.jpg";
 import { Sparkles, Gift } from "lucide-react";
@@ -6,11 +7,13 @@ import { Sparkles, Gift } from "lucide-react";
 const Index = () => {
   const resetCalendar = () => {
     localStorage.removeItem("advent-calendar-opened");
+    localStorage.removeItem("advent-tutorial-seen");
     window.location.reload();
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <TutorialModal />
       {/* Hero Section */}
       <header className="relative overflow-hidden">
         <div className="absolute inset-0">

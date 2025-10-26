@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Gift } from "lucide-react";
 
 interface CalendarDoorProps {
   day: number;
@@ -11,19 +12,38 @@ interface CalendarDoorProps {
 
 export const CalendarDoor = ({ day, content, isOpened, onOpen }: CalendarDoorProps) => {
   const [isFlipping, setIsFlipping] = useState(false);
+  const [showGift, setShowGift] = useState(false);
 
   const handleClick = () => {
     if (!isOpened && !isFlipping) {
       setIsFlipping(true);
+      // Show gift animation after door starts flipping
+      setTimeout(() => setShowGift(true), 300);
       setTimeout(() => {
         onOpen();
         setIsFlipping(false);
+        // Hide gift after it "flies away"
+        setTimeout(() => setShowGift(false), 800);
       }, 600);
     }
   };
 
   return (
     <div className="relative group perspective-1000">
+      {/* Gift animation popping out */}
+      {showGift && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none animate-[scale-in_0.4s_ease-out,float_0.8s_ease-out]">
+          <Gift
+            className="text-primary"
+            size={32}
+            style={{
+              filter: "drop-shadow(0 0 15px rgba(220, 38, 38, 0.6))",
+              animation: "scale-in 0.4s ease-out, float 0.8s ease-out forwards",
+            }}
+          />
+        </div>
+      )}
+      
       <Card
         onClick={handleClick}
         className={cn(

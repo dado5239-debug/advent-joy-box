@@ -119,4 +119,12 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  
+  .rotate-y-\[-120deg\] {
+    transform: perspective(1000px) rotateY(-120deg);
+  }
 }
