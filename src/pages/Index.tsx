@@ -1,5 +1,6 @@
 import { AdventCalendar } from "@/components/AdventCalendar";
 import { TutorialModal } from "@/components/TutorialModal";
+import { VillageMaker } from "@/components/VillageMaker";
 import { Button } from "@/components/ui/button";
 import adventHero from "@/assets/advent-hero.jpg";
 import { Sparkles, Gift } from "lucide-react";
@@ -36,12 +37,13 @@ const Index = () => {
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Unwrap a daily Christmas joke with animated illustrations! Click each door to reveal hilarious holiday humor from December 1st to 24th. 🎅😂
           </p>
-          <div className="flex gap-4 justify-center items-center">
+          <div className="flex gap-4 justify-center items-center flex-wrap">
             <div className="px-6 py-3 bg-card rounded-full border-2 border-primary/20 shadow-md">
               <span className="text-sm font-medium text-muted-foreground">
                 🎄 Count down to Christmas with joy!
               </span>
             </div>
+            <VillageMaker />
             <Button
               variant="outline"
               size="sm"
