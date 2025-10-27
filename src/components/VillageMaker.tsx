@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Home, Trees, Snowflake, Star, Church, Gift } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel } from "lucide-react";
 import { toast } from "sonner";
 
 interface VillageItem {
@@ -19,6 +19,14 @@ const ITEMS = [
   { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500" },
   { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300" },
   { type: "star", icon: Star, label: "Star", color: "text-yellow-400" },
+  { type: "person", icon: User, label: "Person", color: "text-blue-500" },
+  { type: "family", icon: Users, label: "Family", color: "text-purple-500" },
+  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400" },
+  { type: "dog", icon: Dog, label: "Dog", color: "text-amber-600" },
+  { type: "cat", icon: Cat, label: "Cat", color: "text-orange-500" },
+  { type: "bird", icon: Bird, label: "Bird", color: "text-sky-400" },
+  { type: "rabbit", icon: Rabbit, label: "Rabbit", color: "text-gray-400" },
+  { type: "squirrel", icon: Squirrel, label: "Squirrel", color: "text-amber-500" },
 ];
 
 export const VillageMaker = () => {
