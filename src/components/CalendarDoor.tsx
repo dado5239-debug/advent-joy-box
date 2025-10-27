@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Gift } from "lucide-react";
+import { useChristmasMusic } from "@/hooks/useChristmasMusic";
 
 interface CalendarDoorProps {
   day: number;
@@ -14,10 +15,13 @@ interface CalendarDoorProps {
 export const CalendarDoor = ({ day, content, image, isOpened, onOpen }: CalendarDoorProps) => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const { playRandomMelody } = useChristmasMusic();
 
   const handleClick = () => {
     if (!isOpened && !isFlipping) {
       setIsFlipping(true);
+      // Play random Christmas melody
+      playRandomMelody();
       // Show gift animation after door starts flipping
       setTimeout(() => setShowGift(true), 300);
       setTimeout(() => {
