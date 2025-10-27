@@ -1,6 +1,7 @@
 import { AdventCalendar } from "@/components/AdventCalendar";
 import { TutorialModal } from "@/components/TutorialModal";
 import { VillageMaker } from "@/components/VillageMaker";
+import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { Button } from "@/components/ui/button";
 import adventHero from "@/assets/advent-hero.jpg";
 import { Sparkles, Gift } from "lucide-react";
@@ -44,6 +45,7 @@ const Index = () => {
               </span>
             </div>
             <VillageMaker />
+            <DrawingCanvas />
             <Button
               variant="outline"
               size="sm"
