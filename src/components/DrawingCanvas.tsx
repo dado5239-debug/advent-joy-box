@@ -46,9 +46,12 @@ export const DrawingCanvas = () => {
     if (!canvas) return null;
     
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
     };
   };
 
@@ -76,6 +79,8 @@ export const DrawingCanvas = () => {
 
     ctx.beginPath();
     ctx.moveTo(coords.x, coords.y);
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -202,8 +207,8 @@ export const DrawingCanvas = () => {
               onMouseUp={stopDrawing}
               onMouseMove={draw}
               onMouseLeave={stopDrawing}
-              className="bg-white rounded-lg shadow-lg cursor-crosshair border-2 border-border max-w-full max-h-full"
-              style={{ width: "800px", height: "600px" }}
+              className="bg-white rounded-lg shadow-lg cursor-crosshair border-2 border-border"
+              style={{ maxWidth: "100%", maxHeight: "100%" }}
             />
           </div>
         </div>
