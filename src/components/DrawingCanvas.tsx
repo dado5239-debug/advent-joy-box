@@ -262,7 +262,7 @@ export const DrawingCanvas = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="default" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+        <Button variant="blue" className="gap-2">
           <Palette className="w-4 h-4" />
           Draw Christmas Characters
         </Button>
@@ -344,10 +344,10 @@ export const DrawingCanvas = () => {
             </Button>
 
             <Button
-              variant="default"
+              variant="secondary"
               size="sm"
               onClick={saveDrawing}
-              className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+              className="w-full gap-2"
             >
               <Save className="w-4 h-4" />
               Save Drawing
