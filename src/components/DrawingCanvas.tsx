@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Palette, Eraser, Trash2, PaintBucket } from "lucide-react";
+import { Palette, Eraser, Trash2, PaintBucket, Save } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const COLORS = [
   { name: "Red", value: "#ef4444" },
@@ -33,9 +34,9 @@ export const DrawingCanvas = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
-    canvas.width = 800;
-    canvas.height = 600;
+    // Set canvas size (bigger canvas)
+    canvas.width = 1200;
+    canvas.height = 800;
 
     // Fill with white background
     ctx.fillStyle = "white";
@@ -207,10 +208,61 @@ export const DrawingCanvas = () => {
     setIsEraser(false);
   };
 
+  const saveDrawing = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    try {
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error("Please sign in to save your drawing");
+        return;
+      }
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob!);
+        }, "image/png");
+      });
+
+      // Generate unique filename
+      const fileName = `${user.id}/${Date.now()}.png`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("drawings")
+        .upload(fileName, blob, {
+          contentType: "image/png",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Save metadata to database
+      const { error: dbError } = await supabase
+        .from("drawings")
+        .insert({
+          user_id: user.id,
+          storage_path: fileName,
+          title: `Drawing ${new Date().toLocaleDateString()}`,
+        });
+
+      if (dbError) throw dbError;
+
+      toast.success("Drawing saved to your library!");
+    } catch (error) {
+      console.error("Error saving drawing:", error);
+      toast.error("Failed to save drawing");
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="default" className="gap-2">
+        <Button variant="default" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
           <Palette className="w-4 h-4" />
           Draw Christmas Characters
         </Button>
@@ -289,6 +341,16 @@ export const DrawingCanvas = () => {
             >
               <Trash2 className="w-4 h-4" />
               Clear Canvas
+            </Button>
+
+            <Button
+              variant="default"
+              size="sm"
+              onClick={saveDrawing}
+              className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Save className="w-4 h-4" />
+              Save Drawing
             </Button>
           </div>
 
