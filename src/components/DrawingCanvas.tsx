@@ -34,9 +34,9 @@ export const DrawingCanvas = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size (bigger canvas)
-    canvas.width = 1200;
-    canvas.height = 800;
+    // Set canvas size (much bigger canvas)
+    canvas.width = 1600;
+    canvas.height = 1000;
 
     // Fill with white background
     ctx.fillStyle = "white";
