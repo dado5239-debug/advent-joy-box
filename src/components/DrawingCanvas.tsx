@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Palette, Eraser, Trash2 } from "lucide-react";
+import { Palette, Eraser, Trash2, PaintBucket } from "lucide-react";
 import { toast } from "sonner";
 
 const COLORS = [
@@ -23,6 +23,7 @@ export const DrawingCanvas = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState("#000000");
   const [isEraser, setIsEraser] = useState(false);
+  const [isFillMode, setIsFillMode] = useState(false);
   const [brushSize, setBrushSize] = useState(5);
 
   useEffect(() => {
@@ -55,6 +56,74 @@ export const DrawingCanvas = () => {
     };
   };
 
+  const floodFill = (startX: number, startY: number, fillColor: string) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || !canvas) return;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    const startPos = (Math.floor(startY) * canvas.width + Math.floor(startX)) * 4;
+    const startR = data[startPos];
+    const startG = data[startPos + 1];
+    const startB = data[startPos + 2];
+    const startA = data[startPos + 3];
+
+    // Convert hex color to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+
+    const fillRgb = hexToRgb(fillColor);
+    if (!fillRgb) return;
+
+    // If clicking on the same color, do nothing
+    if (startR === fillRgb.r && startG === fillRgb.g && startB === fillRgb.b) {
+      return;
+    }
+
+    const pixelStack: [number, number][] = [[Math.floor(startX), Math.floor(startY)]];
+    
+    const matchesStartColor = (pos: number) => {
+      return data[pos] === startR &&
+             data[pos + 1] === startG &&
+             data[pos + 2] === startB &&
+             data[pos + 3] === startA;
+    };
+
+    const setPixel = (pos: number) => {
+      data[pos] = fillRgb.r;
+      data[pos + 1] = fillRgb.g;
+      data[pos + 2] = fillRgb.b;
+      data[pos + 3] = 255;
+    };
+
+    while (pixelStack.length > 0) {
+      const [x, y] = pixelStack.pop()!;
+      
+      if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) continue;
+      
+      const pos = (y * canvas.width + x) * 4;
+      
+      if (!matchesStartColor(pos)) continue;
+      
+      setPixel(pos);
+      
+      pixelStack.push([x + 1, y]);
+      pixelStack.push([x - 1, y]);
+      pixelStack.push([x, y + 1]);
+      pixelStack.push([x, y - 1]);
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+  };
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getCoordinates(e);
     if (!coords) return;
@@ -62,6 +131,12 @@ export const DrawingCanvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx) return;
+
+    // Handle fill mode
+    if (isFillMode) {
+      floodFill(coords.x, coords.y, currentColor);
+      return;
+    }
 
     setIsDrawing(true);
 
@@ -119,10 +194,17 @@ export const DrawingCanvas = () => {
   const selectColor = (color: string) => {
     setCurrentColor(color);
     setIsEraser(false);
+    setIsFillMode(false);
   };
 
   const selectEraser = () => {
     setIsEraser(true);
+    setIsFillMode(false);
+  };
+
+  const selectFill = () => {
+    setIsFillMode(true);
+    setIsEraser(false);
   };
 
   return (
@@ -162,15 +244,26 @@ export const DrawingCanvas = () => {
 
             <div>
               <p className="text-sm font-semibold mb-2">Tools:</p>
-              <Button
-                variant={isEraser ? "default" : "outline"}
-                size="sm"
-                onClick={selectEraser}
-                className="w-full gap-2"
-              >
-                <Eraser className="w-4 h-4" />
-                Eraser
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant={isFillMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={selectFill}
+                  className="w-full gap-2"
+                >
+                  <PaintBucket className="w-4 h-4" />
+                  Fill
+                </Button>
+                <Button
+                  variant={isEraser ? "default" : "outline"}
+                  size="sm"
+                  onClick={selectEraser}
+                  className="w-full gap-2"
+                >
+                  <Eraser className="w-4 h-4" />
+                  Eraser
+                </Button>
+              </div>
             </div>
 
             <div>
@@ -207,7 +300,7 @@ export const DrawingCanvas = () => {
               onMouseUp={stopDrawing}
               onMouseMove={draw}
               onMouseLeave={stopDrawing}
-              className="bg-white rounded-lg shadow-lg cursor-crosshair border-2 border-border"
+              className={`bg-white rounded-lg shadow-lg border-2 border-border ${isFillMode ? 'cursor-pointer' : 'cursor-crosshair'}`}
               style={{ maxWidth: "100%", maxHeight: "100%" }}
             />
           </div>
