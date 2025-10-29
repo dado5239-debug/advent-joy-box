@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { CalendarDoor } from "./CalendarDoor";
+import { Door25 } from "./Door25";
 import joke1 from "@/assets/jokes/joke-1.jpg";
 import joke2 from "@/assets/jokes/joke-2.jpg";
 import joke3 from "@/assets/jokes/joke-3.jpg";
@@ -106,7 +107,11 @@ const dailyContent = [
   },
 ];
 
-export const AdventCalendar = () => {
+interface AdventCalendarProps {
+  isVip?: boolean;
+}
+
+export const AdventCalendar = ({ isVip = false }: AdventCalendarProps) => {
   const [openedDoors, setOpenedDoors] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -125,7 +130,7 @@ export const AdventCalendar = () => {
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 auto-rows-fr">
         {dailyContent.map((content, index) => {
           const day = index + 1;
           return (
@@ -139,6 +144,13 @@ export const AdventCalendar = () => {
             />
           );
         })}
+        
+        {/* Special Door 25 - VIP Only */}
+        <Door25
+          isOpened={openedDoors.has(25)}
+          onOpen={() => handleOpenDoor(25)}
+          isVip={isVip}
+        />
       </div>
     </div>
   );

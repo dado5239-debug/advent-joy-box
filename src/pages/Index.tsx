@@ -52,6 +52,45 @@ const Index = () => {
     setProfile(data);
   };
 
+  const handleBecomeVip = async () => {
+    if (!user) {
+      toast.error("Please sign in to become VIP");
+      navigate("/auth");
+      return;
+    }
+
+    if (!profile) {
+      toast.error("Profile not found");
+      return;
+    }
+
+    if (profile.is_vip) {
+      toast.info("You're already VIP! 🌟");
+      return;
+    }
+
+    if (profile.currency < 10) {
+      toast.error(`You need 10 money to become VIP. You have ${profile.currency} money.`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        currency: profile.currency - 10,
+        is_vip: true
+      })
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast.error("Failed to become VIP");
+      return;
+    }
+
+    await loadProfile();
+    toast.success("🌟 You are now VIP! You can open door 25! 🎄");
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
@@ -97,15 +136,32 @@ const Index = () => {
             {user ? (
               <div className="flex gap-2 items-center flex-wrap">
                 {profile && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-card rounded-full border-2 border-primary/20">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={profile.avatar_url} alt={profile.name} />
-                      <AvatarFallback>
-                        <User className="w-4 h-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium">{profile.name}</span>
-                  </div>
+                  <>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-card rounded-full border-2 border-primary/20">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={profile.avatar_url} alt={profile.name} />
+                        <AvatarFallback>
+                          <User className="w-4 h-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium">{profile.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-card rounded-full border-2 border-primary/20">
+                      <span className="text-sm font-medium">💰 {profile.currency} money</span>
+                      {profile.is_vip && <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">⭐ VIP</span>}
+                    </div>
+                    {!profile.is_vip && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleBecomeVip}
+                        className="gap-2 bg-yellow-500 hover:bg-yellow-600 text-white border-2 border-yellow-600"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Become VIP (10 💰)
+                      </Button>
+                    )}
+                  </>
                 )}
                 <Button
                   variant="outline"
@@ -180,7 +236,7 @@ const Index = () => {
 
       {/* Calendar Section */}
       <main className="container mx-auto px-4 pb-16">
-        <AdventCalendar />
+        <AdventCalendar isVip={profile?.is_vip || false} />
       </main>
 
       {/* Footer */}
