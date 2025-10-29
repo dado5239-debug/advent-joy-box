@@ -28,14 +28,19 @@ const ITEMS = [
   { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false },
   { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300", isLiving: false },
   { type: "star", icon: Star, label: "Star", color: "text-yellow-400", isLiving: false },
-  { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true },
-  { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true },
-  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true },
-  { type: "dog", icon: Dog, label: "Dog", color: "text-amber-600", isLiving: true },
-  { type: "cat", icon: Cat, label: "Cat", color: "text-orange-500", isLiving: true },
-  { type: "bird", icon: Bird, label: "Bird", color: "text-sky-400", isLiving: true },
-  { type: "rabbit", icon: Rabbit, label: "Rabbit", color: "text-gray-400", isLiving: true },
-  { type: "squirrel", icon: Squirrel, label: "Squirrel", color: "text-amber-500", isLiving: true },
+  { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true, babyType: "baby" },
+  { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true, babyType: "baby" },
+  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "person" },
+  { type: "dog", icon: Dog, label: "Dog", color: "text-amber-600", isLiving: true, babyType: "puppy" },
+  { type: "puppy", icon: Dog, label: "Puppy", color: "text-amber-400", isLiving: true, growsInto: "dog" },
+  { type: "cat", icon: Cat, label: "Cat", color: "text-orange-500", isLiving: true, babyType: "kitten" },
+  { type: "kitten", icon: Cat, label: "Kitten", color: "text-orange-300", isLiving: true, growsInto: "cat" },
+  { type: "bird", icon: Bird, label: "Bird", color: "text-sky-400", isLiving: true, babyType: "chick" },
+  { type: "chick", icon: Bird, label: "Chick", color: "text-yellow-300", isLiving: true, growsInto: "bird" },
+  { type: "rabbit", icon: Rabbit, label: "Rabbit", color: "text-gray-400", isLiving: true, babyType: "bunny" },
+  { type: "bunny", icon: Rabbit, label: "Bunny", color: "text-gray-300", isLiving: true, growsInto: "rabbit" },
+  { type: "squirrel", icon: Squirrel, label: "Squirrel", color: "text-amber-500", isLiving: true, babyType: "kit" },
+  { type: "kit", icon: Squirrel, label: "Kit", color: "text-amber-300", isLiving: true, growsInto: "squirrel" },
 ];
 
 const SPEECH_OPTIONS = [
@@ -87,15 +92,31 @@ export const VillageMaker = () => {
           const itemConfig = ITEMS.find(i => i.type === item.type);
           if (!itemConfig?.isLiving) return item;
 
-          // Grow babies
+          // Random movement (walking)
+          const moveX = (Math.random() - 0.5) * 20;
+          const moveY = (Math.random() - 0.5) * 20;
+
+          // Grow babies and transform them into adults
           const currentAge = item.age ?? 100;
           const currentSize = item.size ?? 1;
           const newAge = Math.min(100, currentAge + 2);
           const newSize = Math.min(1, 0.5 + (newAge / 200));
-
-          // Random movement (walking)
-          const moveX = (Math.random() - 0.5) * 20;
-          const moveY = (Math.random() - 0.5) * 20;
+          
+          // Check if baby should grow into adult
+          if (newAge >= 100 && itemConfig.growsInto) {
+            const adultConfig = ITEMS.find(i => i.type === itemConfig.growsInto);
+            if (adultConfig) {
+              return {
+                ...item,
+                type: adultConfig.type,
+                icon: adultConfig.icon,
+                age: 100,
+                size: 1,
+                x: Math.max(50, Math.min(item.x + moveX, 750)),
+                y: Math.max(50, Math.min(item.y + moveY, 550)),
+              };
+            }
+          }
           
           // Random speech
           const shouldSpeak = Math.random() < 0.3;
@@ -150,23 +171,29 @@ export const VillageMaker = () => {
               
               // If close enough, 10% chance to create baby
               if (distance < 50 && Math.random() < 0.1) {
-                const babyX = (item1.x + item2.x) / 2;
-                const babyY = (item1.y + item2.y) / 2;
+                const parentConfig = ITEMS.find(i => i.type === item1.type);
+                const babyType = parentConfig?.babyType || item1.type;
+                const babyConfig = ITEMS.find(i => i.type === babyType);
                 
-                const baby: VillageItem = {
-                  id: `${item1.type}-baby-${Date.now()}-${Math.random()}`,
-                  type: item1.type,
-                  x: babyX,
-                  y: babyY,
-                  icon: item1.icon,
-                  age: 0,
-                  size: 0.5,
-                  speech: "👶",
-                  showSpeech: true,
-                };
-                
-                newItems.push(baby);
-                toast.success(`A baby ${ITEMS.find(i => i.type === item1.type)?.label.toLowerCase()} was born! 👶`);
+                if (babyConfig) {
+                  const babyX = (item1.x + item2.x) / 2;
+                  const babyY = (item1.y + item2.y) / 2;
+                  
+                  const baby: VillageItem = {
+                    id: `${babyType}-${Date.now()}-${Math.random()}`,
+                    type: babyType,
+                    x: babyX,
+                    y: babyY,
+                    icon: babyConfig.icon,
+                    age: 0,
+                    size: 0.5,
+                    speech: "👶",
+                    showSpeech: true,
+                  };
+                  
+                  newItems.push(baby);
+                  toast.success(`A ${babyConfig.label.toLowerCase()} was born! 👶`);
+                }
               }
             }
           }
