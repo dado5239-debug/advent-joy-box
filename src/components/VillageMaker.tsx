@@ -86,11 +86,32 @@ export const VillageMaker = () => {
         // Random speech
         const shouldSpeak = Math.random() < 0.3;
         
+        // Animal-specific sounds
+        let speech = "";
+        if (shouldSpeak) {
+          switch (item.type) {
+            case "dog":
+              speech = "Woof woof! 🐕";
+              break;
+            case "cat":
+              speech = "Meow meow! 🐱";
+              break;
+            case "bird":
+              speech = "Cheep cheep! 🐦";
+              break;
+            case "rabbit":
+              speech = "Eek eek! 🐰";
+              break;
+            default:
+              speech = SPEECH_OPTIONS[Math.floor(Math.random() * SPEECH_OPTIONS.length)];
+          }
+        }
+        
         return {
           ...item,
           x: Math.max(50, Math.min(item.x + moveX, 750)),
           y: Math.max(50, Math.min(item.y + moveY, 550)),
-          speech: shouldSpeak ? SPEECH_OPTIONS[Math.floor(Math.random() * SPEECH_OPTIONS.length)] : item.speech,
+          speech: shouldSpeak ? speech : item.speech,
           showSpeech: shouldSpeak ? true : false,
         };
       }));
