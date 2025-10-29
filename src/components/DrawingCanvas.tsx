@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Palette, Eraser, Trash2, PaintBucket, Save } from "lucide-react";
+import { Palette, Eraser, Trash2, PaintBucket, Save, Library } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,6 +21,7 @@ const COLORS = [
 ];
 
 export const DrawingCanvas = () => {
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState("#000000");
@@ -351,6 +353,16 @@ export const DrawingCanvas = () => {
             >
               <Save className="w-4 h-4" />
               Save Drawing
+            </Button>
+
+            <Button
+              variant="green"
+              size="sm"
+              onClick={() => navigate("/library")}
+              className="w-full gap-2"
+            >
+              <Library className="w-4 h-4" />
+              Go to Library
             </Button>
           </div>
 
