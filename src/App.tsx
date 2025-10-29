@@ -9,6 +9,7 @@ import ProfileSetup from "./pages/ProfileSetup";
 import Library from "./pages/Library";
 import MyVillages from "./pages/MyVillages";
 import LiveLibrary from "./pages/LiveLibrary";
+import Quiz from "./pages/Quiz";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/library" element={<Library />} />
           <Route path="/my-villages" element={<MyVillages />} />
           <Route path="/community" element={<LiveLibrary />} />
+          <Route path="/quiz" element={<Quiz />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

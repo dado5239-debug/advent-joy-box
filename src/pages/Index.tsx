@@ -69,15 +69,15 @@ const Index = () => {
       return;
     }
 
-    if (profile.currency < 10) {
-      toast.error(`You need 10 money to become VIP. You have ${profile.currency} money.`);
+    if (profile.currency < 120) {
+      toast.error(`You need 120 money to become VIP. You have ${profile.currency} money.`);
       return;
     }
 
     const { error } = await supabase
       .from("profiles")
       .update({
-        currency: profile.currency - 10,
+        currency: profile.currency - 120,
         is_vip: true
       })
       .eq("user_id", user.id);
@@ -158,7 +158,7 @@ const Index = () => {
                         className="gap-2 bg-yellow-500 hover:bg-yellow-600 text-white border-2 border-yellow-600"
                       >
                         <Sparkles className="w-4 h-4" />
-                        Become VIP (10 💰)
+                        Become VIP (120 💰)
                       </Button>
                     )}
                   </>
@@ -205,6 +205,15 @@ const Index = () => {
           </div>
           
           <div className="flex gap-4 justify-center items-center flex-wrap mt-4">
+            <Button
+              variant="default"
+              size="lg"
+              onClick={() => navigate("/quiz")}
+              className="gap-2 bg-orange-500 hover:bg-orange-600 text-white border-2 border-orange-600"
+            >
+              <Gift className="w-4 h-4" />
+              Daily Quiz
+            </Button>
             <Button
               variant="secondary"
               size="lg"
