@@ -209,6 +209,15 @@ const Index = () => {
               Daily Quiz
             </Button>
             <Button
+              variant="default"
+              size="lg"
+              onClick={() => navigate("/christmas-ai")}
+              className="gap-2 bg-pink-500 hover:bg-pink-600 text-white border-2 border-pink-600"
+            >
+              <Sparkles className="w-4 h-4" />
+              Advento AI
+            </Button>
+            <Button
               variant="secondary"
               size="lg"
               onClick={() => navigate("/community")}

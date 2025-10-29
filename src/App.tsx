@@ -10,6 +10,7 @@ import Library from "./pages/Library";
 import MyVillages from "./pages/MyVillages";
 import LiveLibrary from "./pages/LiveLibrary";
 import Quiz from "./pages/Quiz";
+import ChristmasAI from "./pages/ChristmasAI";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/my-villages" element={<MyVillages />} />
           <Route path="/community" element={<LiveLibrary />} />
           <Route path="/quiz" element={<Quiz />} />
+          <Route path="/christmas-ai" element={<ChristmasAI />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
