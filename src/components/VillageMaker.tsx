@@ -282,14 +282,15 @@ export const VillageMaker = () => {
       if (uploadError) throw uploadError;
 
       // Save to database
+      const villageDataToSave = placedItems.map(({ icon, ...item }) => item);
       const { error: dbError } = await supabase
         .from("villages")
-        .insert({
-          user_id: user.id,
-          title: title,
-          village_data: placedItems,
+        .insert([{
           storage_path: fileName,
-        });
+          title: title,
+          user_id: user.id,
+          village_data: villageDataToSave,
+        }]);
 
       if (dbError) throw dbError;
 

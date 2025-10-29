@@ -15,7 +15,6 @@ interface Drawing {
   storage_path: string;
   created_at: string;
   user_id: string;
-  profiles: { name: string } | null;
 }
 
 interface Village {
@@ -24,7 +23,6 @@ interface Village {
   storage_path: string;
   created_at: string;
   user_id: string;
-  profiles: { name: string } | null;
 }
 
 interface Comment {
@@ -32,7 +30,6 @@ interface Comment {
   user_id: string;
   content: string;
   created_at: string;
-  profiles: { name: string } | null;
 }
 
 const LiveLibrary = () => {
@@ -60,11 +57,11 @@ const LiveLibrary = () => {
       const [drawingsRes, villagesRes] = await Promise.all([
         supabase
           .from("drawings")
-          .select("*, profiles(name)")
+          .select("*")
           .order("created_at", { ascending: false }),
         supabase
           .from("villages")
-          .select("*, profiles(name)")
+          .select("*")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -82,7 +79,7 @@ const LiveLibrary = () => {
 
       const { data: commentsData } = await supabase
         .from("comments")
-        .select("*, profiles(name)")
+        .select("*")
         .in("item_id", allIds)
         .order("created_at", { ascending: true });
 
@@ -126,7 +123,7 @@ const LiveLibrary = () => {
           item_id: itemId,
           content: content,
         })
-        .select("*, profiles(name)")
+        .select()
         .single();
 
       if (error) throw error;
@@ -177,13 +174,6 @@ const LiveLibrary = () => {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">{item.title}</CardTitle>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Avatar className="w-6 h-6">
-            <AvatarFallback>
-              <User className="w-3 h-3" />
-            </AvatarFallback>
-          </Avatar>
-          <span>{item.profiles?.name || "Anonymous"}</span>
-          <span>•</span>
           <span>{new Date(item.created_at).toLocaleDateString()}</span>
         </div>
       </CardHeader>
@@ -221,14 +211,7 @@ const LiveLibrary = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <Avatar className="w-5 h-5">
-                          <AvatarFallback>
-                            <User className="w-3 h-3" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-semibold">
-                          {comment.profiles?.name || "Anonymous"}
-                        </span>
+                        <span className="font-semibold">User</span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(comment.created_at).toLocaleDateString()}
                         </span>
