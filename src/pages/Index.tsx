@@ -6,6 +6,7 @@ import { TutorialModal } from "@/components/TutorialModal";
 import { VillageMaker } from "@/components/VillageMaker";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { MiniCalendar } from "@/components/MiniCalendar";
+import { ChristmasCountdown } from "@/components/ChristmasCountdown";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import adventHero from "@/assets/advent-hero.jpg";
@@ -171,6 +172,11 @@ const Index = () => {
           </div>
         </div>
       </header>
+
+      {/* Countdown Section */}
+      <div className="container mx-auto px-4 py-8">
+        <ChristmasCountdown />
+      </div>
 
       {/* Calendar Section */}
       <main className="container mx-auto px-4 pb-16">
