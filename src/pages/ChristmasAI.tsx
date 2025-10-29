@@ -25,11 +25,14 @@ const ChristmasAI = () => {
 
     try {
       const description = generationType === "song" 
-        ? `Generate a Christmas carol or song with these characteristics: ${prompt}. Include title, verses, and chorus.`
+        ? `Generate a Christmas carol or song with these characteristics: ${prompt}. Include title, verses, and chorus. Format it beautifully with clear sections.`
         : `Generate a Christmas-themed drawing based on: ${prompt}`;
 
       const { data, error } = await supabase.functions.invoke("advero-generate", {
-        body: { description }
+        body: { 
+          description,
+          type: generationType
+        }
       });
 
       if (error) throw error;
@@ -129,10 +132,24 @@ const ChristmasAI = () => {
         </Card>
 
         {result && (
-          <Card className="p-6">
+          <Card className="p-6 relative overflow-hidden">
+            {generationType === "song" && (
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover opacity-20 -z-10"
+              >
+                <source
+                  src="https://cdn.pixabay.com/video/2022/12/09/142571-779622095_large.mp4"
+                  type="video/mp4"
+                />
+              </video>
+            )}
             <h3 className="text-lg font-semibold mb-4">Generated Result:</h3>
             {generationType === "song" ? (
-              <div className="whitespace-pre-wrap text-muted-foreground">
+              <div className="whitespace-pre-wrap text-foreground font-medium text-lg leading-relaxed">
                 {result}
               </div>
             ) : (

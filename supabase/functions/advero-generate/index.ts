@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { description } = await req.json();
+    const { description, type } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -28,6 +28,64 @@ serve(async (req) => {
       );
     }
 
+    // Handle song generation (text)
+    if (type === "song") {
+      console.log("Generating Christmas song for description:", description);
+      
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "user",
+              content: description,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("AI gateway error:", response.status, errorText);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate song" }),
+          {
+            status: response.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const data = await response.json();
+      const songText = data.choices?.[0]?.message?.content;
+
+      if (!songText) {
+        console.error("No song text in response:", data);
+        return new Response(
+          JSON.stringify({ error: "No song generated" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      console.log("Song generated successfully");
+
+      return new Response(
+        JSON.stringify({ text: songText }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Handle drawing generation (image)
     console.log("Generating image with Advero AI for description:", description);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -41,7 +99,7 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: `Generate a profile picture avatar with the following description: ${description}. Make it suitable for a user profile avatar.`,
+            content: description,
           },
         ],
         modalities: ["image", "text"],
