@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
+import { useVillageSounds } from "@/hooks/useVillageSounds";
 
 interface VillageItem {
   id: string;
@@ -57,6 +58,7 @@ export const VillageMaker = () => {
   const [title, setTitle] = useState("My Christmas Village");
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { playSound } = useVillageSounds();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -89,6 +91,9 @@ export const VillageMaker = () => {
         // Animal-specific sounds
         let speech = "";
         if (shouldSpeak) {
+          // Play the sound
+          playSound(item.type);
+          
           switch (item.type) {
             case "dog":
               speech = "Woof woof! 🐕";
