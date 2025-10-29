@@ -175,7 +175,7 @@ const Library = () => {
           setRefreshKey(prev => prev + 1); // Refresh drawings after editing
         }
       }}>
-        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+        <DialogContent className="max-w-full w-screen h-screen p-0">
           {editingDrawing && (
             <DrawingCanvas editingDrawing={editingDrawing} />
           )}

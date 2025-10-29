@@ -339,16 +339,16 @@ export const DrawingCanvas = ({ editingDrawing = null }: DrawingCanvasProps) => 
           Draw Christmas Characters
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-full w-screen h-screen p-4 flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl">
             {editingDrawing ? `Edit: ${editingDrawing.title}` : "Christmas Drawing Canvas"}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 flex gap-4 overflow-hidden">
+        <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
           {/* Toolbox */}
-          <div className="w-48 space-y-4 overflow-y-auto p-4 bg-muted rounded-lg">
+          <div className="w-56 space-y-4 overflow-y-auto p-4 bg-muted rounded-lg flex-shrink-0">
             <div>
               <p className="text-sm font-semibold mb-2">Colors:</p>
               <div className="grid grid-cols-3 gap-2">
@@ -439,7 +439,7 @@ export const DrawingCanvas = ({ editingDrawing = null }: DrawingCanvasProps) => 
           </div>
 
           {/* Canvas */}
-          <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg p-4">
+          <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg p-4 min-w-0">
             <canvas
               ref={canvasRef}
               onMouseDown={startDrawing}
@@ -447,7 +447,7 @@ export const DrawingCanvas = ({ editingDrawing = null }: DrawingCanvasProps) => 
               onMouseMove={draw}
               onMouseLeave={stopDrawing}
               className={`bg-white rounded-lg shadow-lg border-2 border-border ${isFillMode ? 'cursor-pointer' : 'cursor-crosshair'}`}
-              style={{ maxWidth: "100%", maxHeight: "100%" }}
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
             />
           </div>
         </div>
