@@ -123,9 +123,6 @@ const Index = () => {
             </h1>
             <Sparkles className="w-8 h-8 text-accent animate-sparkle" />
           </div>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Unwrap a daily Christmas joke with animated illustrations! Click each door to reveal hilarious holiday humor from December 1st to 24th. 🎅😂
-          </p>
           <div className="flex gap-4 justify-center items-center flex-wrap">
             {user ? (
               <div className="flex gap-2 items-center flex-wrap">
