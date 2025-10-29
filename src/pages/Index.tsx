@@ -127,12 +127,6 @@ const Index = () => {
             Unwrap a daily Christmas joke with animated illustrations! Click each door to reveal hilarious holiday humor from December 1st to 24th. 🎅😂
           </p>
           <div className="flex gap-4 justify-center items-center flex-wrap">
-            <div className="px-6 py-3 bg-card rounded-full border-2 border-primary/20 shadow-md">
-              <span className="text-sm font-medium text-muted-foreground">
-                🎄 Count down to Christmas with joy!
-              </span>
-            </div>
-            
             {user ? (
               <div className="flex gap-2 items-center flex-wrap">
                 {profile && (
