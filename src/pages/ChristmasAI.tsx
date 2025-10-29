@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Music, Palette, Sparkles } from "lucide-react";
+import { ArrowLeft, Music, Palette, Sparkles, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,6 +13,16 @@ const ChristmasAI = () => {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string>("");
   const [generationType, setGenerationType] = useState<"song" | "drawing">("song");
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    checkAuth();
+  }, []);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -51,6 +61,61 @@ const ChristmasAI = () => {
       toast.error("Failed to generate content. Please try again.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) {
+      toast.error("Please sign in to save");
+      navigate("/auth");
+      return;
+    }
+
+    if (!result) {
+      toast.error("Nothing to save yet");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      if (generationType === "song") {
+        const { error } = await supabase.from("songs").insert({
+          user_id: user.id,
+          title: prompt.slice(0, 50) || "Untitled Song",
+          content: result,
+        });
+
+        if (error) throw error;
+        toast.success("Song saved to your library!");
+      } else {
+        // For drawings, save the image URL to storage first
+        const fileName = `${user.id}/${Date.now()}.png`;
+        
+        // Fetch the image data
+        const response = await fetch(result);
+        const blob = await response.blob();
+        
+        const { error: uploadError } = await supabase.storage
+          .from("drawings")
+          .upload(fileName, blob);
+
+        if (uploadError) throw uploadError;
+
+        const { error: dbError } = await supabase.from("drawings").insert({
+          user_id: user.id,
+          title: prompt.slice(0, 50) || "Untitled Drawing",
+          storage_path: fileName,
+        });
+
+        if (dbError) throw dbError;
+        toast.success("Drawing saved to your library!");
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -148,7 +213,19 @@ const ChristmasAI = () => {
               </video>
             )}
             <div className="relative z-10">
-              <h3 className="text-lg font-semibold mb-4">🎵 Your Christmas {generationType === "song" ? "Carol" : "Drawing"}:</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">🎵 Your Christmas {generationType === "song" ? "Carol" : "Drawing"}:</h3>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Saving..." : "Save to Library"}
+                </Button>
+              </div>
               {generationType === "song" ? (
                 <div className="whitespace-pre-wrap text-foreground font-medium text-base md:text-lg leading-relaxed max-h-[500px] overflow-y-auto p-4 bg-background/50 backdrop-blur-sm rounded-lg">
                   {result}
