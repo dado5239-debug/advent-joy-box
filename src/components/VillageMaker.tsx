@@ -17,6 +17,8 @@ interface VillageItem {
   icon: any;
   speech?: string;
   showSpeech?: boolean;
+  age?: number; // 0 = baby, 100 = adult
+  size?: number; // 0.5 = baby, 1 = adult
 }
 
 const ITEMS = [
@@ -77,53 +79,105 @@ export const VillageMaker = () => {
   // Animation loop for living items
   useEffect(() => {
     const interval = setInterval(() => {
-      setPlacedItems(prev => prev.map(item => {
-        const itemConfig = ITEMS.find(i => i.type === item.type);
-        if (!itemConfig?.isLiving) return item;
+      setPlacedItems(prev => {
+        let newItems = [...prev];
+        
+        // Update existing items
+        newItems = newItems.map(item => {
+          const itemConfig = ITEMS.find(i => i.type === item.type);
+          if (!itemConfig?.isLiving) return item;
 
-        // Random movement (walking)
-        const moveX = (Math.random() - 0.5) * 20;
-        const moveY = (Math.random() - 0.5) * 20;
-        
-        // Random speech
-        const shouldSpeak = Math.random() < 0.3;
-        
-        // Animal-specific sounds
-        let speech = "";
-        if (shouldSpeak) {
-          // Play the sound
-          playSound(item.type);
+          // Grow babies
+          const currentAge = item.age ?? 100;
+          const currentSize = item.size ?? 1;
+          const newAge = Math.min(100, currentAge + 2);
+          const newSize = Math.min(1, 0.5 + (newAge / 200));
+
+          // Random movement (walking)
+          const moveX = (Math.random() - 0.5) * 20;
+          const moveY = (Math.random() - 0.5) * 20;
           
-          switch (item.type) {
-            case "dog":
-              speech = "Woof woof! 🐕";
-              break;
-            case "cat":
-              speech = "Meow meow! 🐱";
-              break;
-            case "bird":
-              speech = "Cheep cheep! 🐦";
-              break;
-            case "rabbit":
-              speech = "Eek eek! 🐰";
-              break;
-            default:
-              speech = SPEECH_OPTIONS[Math.floor(Math.random() * SPEECH_OPTIONS.length)];
+          // Random speech
+          const shouldSpeak = Math.random() < 0.3;
+          
+          // Animal-specific sounds
+          let speech = "";
+          if (shouldSpeak) {
+            // Play the sound
+            playSound(item.type);
+            
+            switch (item.type) {
+              case "dog":
+                speech = "Woof woof! 🐕";
+                break;
+              case "cat":
+                speech = "Meow meow! 🐱";
+                break;
+              case "bird":
+                speech = "Cheep cheep! 🐦";
+                break;
+              case "rabbit":
+                speech = "Eek eek! 🐰";
+                break;
+              default:
+                speech = SPEECH_OPTIONS[Math.floor(Math.random() * SPEECH_OPTIONS.length)];
+            }
+          }
+          
+          return {
+            ...item,
+            x: Math.max(50, Math.min(item.x + moveX, 750)),
+            y: Math.max(50, Math.min(item.y + moveY, 550)),
+            speech: shouldSpeak ? speech : item.speech,
+            showSpeech: shouldSpeak ? true : false,
+            age: newAge,
+            size: newSize,
+          };
+        });
+
+        // Check for breeding (when two compatible adults are close)
+        const adults = newItems.filter(item => (item.age ?? 100) >= 100);
+        for (let i = 0; i < adults.length; i++) {
+          for (let j = i + 1; j < adults.length; j++) {
+            const item1 = adults[i];
+            const item2 = adults[j];
+            
+            // Check if same species and close together
+            if (item1.type === item2.type) {
+              const distance = Math.sqrt(
+                Math.pow(item1.x - item2.x, 2) + Math.pow(item1.y - item2.y, 2)
+              );
+              
+              // If close enough, 10% chance to create baby
+              if (distance < 50 && Math.random() < 0.1) {
+                const babyX = (item1.x + item2.x) / 2;
+                const babyY = (item1.y + item2.y) / 2;
+                
+                const baby: VillageItem = {
+                  id: `${item1.type}-baby-${Date.now()}-${Math.random()}`,
+                  type: item1.type,
+                  x: babyX,
+                  y: babyY,
+                  icon: item1.icon,
+                  age: 0,
+                  size: 0.5,
+                  speech: "👶",
+                  showSpeech: true,
+                };
+                
+                newItems.push(baby);
+                toast.success(`A baby ${ITEMS.find(i => i.type === item1.type)?.label.toLowerCase()} was born! 👶`);
+              }
+            }
           }
         }
         
-        return {
-          ...item,
-          x: Math.max(50, Math.min(item.x + moveX, 750)),
-          y: Math.max(50, Math.min(item.y + moveY, 550)),
-          speech: shouldSpeak ? speech : item.speech,
-          showSpeech: shouldSpeak ? true : false,
-        };
-      }));
+        return newItems;
+      });
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [playSound]);
 
   const handleDragStart = (type: string) => {
     setDraggedItem(type);
@@ -148,6 +202,8 @@ export const VillageMaker = () => {
         x,
         y,
         icon: item.icon,
+        age: 100,
+        size: 1,
       },
     ]);
 
@@ -291,11 +347,19 @@ export const VillageMaker = () => {
             {placedItems.map((item) => {
               const ItemIcon = item.icon;
               const itemConfig = ITEMS.find(i => i.type === item.type);
+              const scale = item.size ?? 1;
+              const iconSize = 32 * scale;
+              const offset = iconSize / 2;
+              
               return (
                 <div
                   key={item.id}
                   className="absolute cursor-pointer hover:scale-110 transition-all duration-1000 ease-in-out"
-                  style={{ left: item.x - 16, top: item.y - 16 }}
+                  style={{ 
+                    left: item.x - offset, 
+                    top: item.y - offset,
+                    transform: `scale(${scale})`
+                  }}
                   onClick={() => {
                     setPlacedItems(placedItems.filter(i => i.id !== item.id));
                     toast.info("Item removed");
