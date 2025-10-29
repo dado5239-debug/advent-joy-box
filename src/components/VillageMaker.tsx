@@ -14,23 +14,38 @@ interface VillageItem {
   x: number;
   y: number;
   icon: any;
+  speech?: string;
+  showSpeech?: boolean;
 }
 
 const ITEMS = [
-  { type: "house", icon: Home, label: "House", color: "text-red-500" },
-  { type: "tree", icon: Trees, label: "Tree", color: "text-green-600" },
-  { type: "church", icon: Church, label: "Church", color: "text-amber-700" },
-  { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500" },
-  { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300" },
-  { type: "star", icon: Star, label: "Star", color: "text-yellow-400" },
-  { type: "person", icon: User, label: "Person", color: "text-blue-500" },
-  { type: "family", icon: Users, label: "Family", color: "text-purple-500" },
-  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400" },
-  { type: "dog", icon: Dog, label: "Dog", color: "text-amber-600" },
-  { type: "cat", icon: Cat, label: "Cat", color: "text-orange-500" },
-  { type: "bird", icon: Bird, label: "Bird", color: "text-sky-400" },
-  { type: "rabbit", icon: Rabbit, label: "Rabbit", color: "text-gray-400" },
-  { type: "squirrel", icon: Squirrel, label: "Squirrel", color: "text-amber-500" },
+  { type: "house", icon: Home, label: "House", color: "text-red-500", isLiving: false },
+  { type: "tree", icon: Trees, label: "Tree", color: "text-green-600", isLiving: false },
+  { type: "church", icon: Church, label: "Church", color: "text-amber-700", isLiving: false },
+  { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false },
+  { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300", isLiving: false },
+  { type: "star", icon: Star, label: "Star", color: "text-yellow-400", isLiving: false },
+  { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true },
+  { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true },
+  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true },
+  { type: "dog", icon: Dog, label: "Dog", color: "text-amber-600", isLiving: true },
+  { type: "cat", icon: Cat, label: "Cat", color: "text-orange-500", isLiving: true },
+  { type: "bird", icon: Bird, label: "Bird", color: "text-sky-400", isLiving: true },
+  { type: "rabbit", icon: Rabbit, label: "Rabbit", color: "text-gray-400", isLiving: true },
+  { type: "squirrel", icon: Squirrel, label: "Squirrel", color: "text-amber-500", isLiving: true },
+];
+
+const SPEECH_OPTIONS = [
+  "Merry Christmas! 🎄",
+  "Happy Holidays! ⛄",
+  "Ho Ho Ho! 🎅",
+  "Jingle Bells! 🔔",
+  "Joy to the World! ✨",
+  "Fa La La! 🎶",
+  "Peace on Earth! ☮️",
+  "Season's Greetings! 🎁",
+  "Deck the Halls! 🌟",
+  "Let it Snow! ❄️",
 ];
 
 export const VillageMaker = () => {
@@ -55,6 +70,33 @@ export const VillageMaker = () => {
     );
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Animation loop for living items
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlacedItems(prev => prev.map(item => {
+        const itemConfig = ITEMS.find(i => i.type === item.type);
+        if (!itemConfig?.isLiving) return item;
+
+        // Random movement (walking)
+        const moveX = (Math.random() - 0.5) * 20;
+        const moveY = (Math.random() - 0.5) * 20;
+        
+        // Random speech
+        const shouldSpeak = Math.random() < 0.3;
+        
+        return {
+          ...item,
+          x: Math.max(50, Math.min(item.x + moveX, 750)),
+          y: Math.max(50, Math.min(item.y + moveY, 550)),
+          speech: shouldSpeak ? SPEECH_OPTIONS[Math.floor(Math.random() * SPEECH_OPTIONS.length)] : item.speech,
+          showSpeech: shouldSpeak ? true : false,
+        };
+      }));
+    }, 2000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleDragStart = (type: string) => {
@@ -226,13 +268,19 @@ export const VillageMaker = () => {
               return (
                 <div
                   key={item.id}
-                  className="absolute cursor-pointer hover:scale-110 transition-transform"
+                  className="absolute cursor-pointer hover:scale-110 transition-all duration-1000 ease-in-out"
                   style={{ left: item.x - 16, top: item.y - 16 }}
                   onClick={() => {
                     setPlacedItems(placedItems.filter(i => i.id !== item.id));
                     toast.info("Item removed");
                   }}
                 >
+                  {item.showSpeech && item.speech && (
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-3 py-1 rounded-full text-xs whitespace-nowrap shadow-lg border-2 border-primary/20 animate-fade-in">
+                      {item.speech}
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-slate-800 rotate-45 border-r-2 border-b-2 border-primary/20"></div>
+                    </div>
+                  )}
                   <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
                 </div>
               );
