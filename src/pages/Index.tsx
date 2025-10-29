@@ -1,12 +1,59 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { AdventCalendar } from "@/components/AdventCalendar";
 import { TutorialModal } from "@/components/TutorialModal";
 import { VillageMaker } from "@/components/VillageMaker";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import adventHero from "@/assets/advent-hero.jpg";
-import { Sparkles, Gift } from "lucide-react";
+import { Sparkles, Gift, LogOut, User } from "lucide-react";
+import { toast } from "sonner";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    } else {
+      setProfile(null);
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    setProfile(data);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out successfully");
+  };
   const resetCalendar = () => {
     localStorage.removeItem("advent-calendar-opened");
     localStorage.removeItem("advent-tutorial-seen");
@@ -44,6 +91,42 @@ const Index = () => {
                 🎄 Count down to Christmas with joy!
               </span>
             </div>
+            
+            {user ? (
+              <div className="flex gap-2 items-center">
+                {profile && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-card rounded-full border-2 border-primary/20">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={profile.avatar_url} alt={profile.name} />
+                      <AvatarFallback>
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{profile.name}</span>
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="blue"
+                size="lg"
+                onClick={() => navigate("/auth")}
+                className="gap-2"
+              >
+                <User className="w-4 h-4" />
+                Sign Up
+              </Button>
+            )}
+            
             <VillageMaker />
             <DrawingCanvas />
             <Button

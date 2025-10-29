@@ -1,1 +1,4 @@
 project_id = "suigtijhvlankqntijme"
+
+[functions.advero-generate]
+verify_jwt = true
