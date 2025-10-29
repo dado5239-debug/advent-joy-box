@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DrawingCanvas } from "@/components/DrawingCanvas";
+import { ArrowLeft, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 interface Drawing {
@@ -18,10 +20,12 @@ const Library = () => {
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [refreshKey]);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -130,13 +134,22 @@ const Library = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center justify-between">
                     <span>{drawing.title}</span>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => deleteDrawing(drawing.id, drawing.storage_path)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setEditingDrawing(drawing)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteDrawing(drawing.id, drawing.storage_path)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </CardTitle>
                   <p className="text-xs text-muted-foreground">
                     {new Date(drawing.created_at).toLocaleDateString()}
@@ -154,6 +167,20 @@ const Library = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingDrawing} onOpenChange={(open) => {
+        if (!open) {
+          setEditingDrawing(null);
+          setRefreshKey(prev => prev + 1); // Refresh drawings after editing
+        }
+      }}>
+        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+          {editingDrawing && (
+            <DrawingCanvas editingDrawing={editingDrawing} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

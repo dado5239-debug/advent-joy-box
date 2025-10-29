@@ -20,7 +20,15 @@ const COLORS = [
   { name: "Black", value: "#000000" },
 ];
 
-export const DrawingCanvas = () => {
+interface DrawingCanvasProps {
+  editingDrawing?: {
+    id: string;
+    storage_path: string;
+    title: string;
+  } | null;
+}
+
+export const DrawingCanvas = ({ editingDrawing = null }: DrawingCanvasProps) => {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -28,6 +36,7 @@ export const DrawingCanvas = () => {
   const [isEraser, setIsEraser] = useState(false);
   const [isFillMode, setIsFillMode] = useState(false);
   const [brushSize, setBrushSize] = useState(5);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -40,10 +49,50 @@ export const DrawingCanvas = () => {
     canvas.width = 1600;
     canvas.height = 1000;
 
-    // Fill with white background
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }, []);
+    // Fill with white background or load existing drawing
+    if (editingDrawing) {
+      loadDrawingToCanvas(editingDrawing.storage_path);
+    } else {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [editingDrawing]);
+
+  useEffect(() => {
+    if (editingDrawing && isOpen) {
+      // Reload the drawing when dialog opens
+      loadDrawingToCanvas(editingDrawing.storage_path);
+    }
+  }, [isOpen]);
+
+  const loadDrawingToCanvas = async (storagePath: string) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || !canvas) return;
+
+    try {
+      // Get the image URL from storage
+      const { data } = supabase.storage
+        .from("drawings")
+        .getPublicUrl(storagePath);
+
+      // Load the image
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        // Clear canvas first
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw the image
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = data.publicUrl;
+    } catch (error) {
+      console.error("Error loading drawing:", error);
+      toast.error("Failed to load drawing");
+    }
+  };
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -230,31 +279,52 @@ export const DrawingCanvas = () => {
         }, "image/png");
       });
 
-      // Generate unique filename
-      const fileName = `${user.id}/${Date.now()}.png`;
+      if (editingDrawing) {
+        // Update existing drawing
+        // Delete old file
+        await supabase.storage
+          .from("drawings")
+          .remove([editingDrawing.storage_path]);
 
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from("drawings")
-        .upload(fileName, blob, {
-          contentType: "image/png",
-          upsert: false,
-        });
+        // Upload new version
+        const { error: uploadError } = await supabase.storage
+          .from("drawings")
+          .upload(editingDrawing.storage_path, blob, {
+            contentType: "image/png",
+            upsert: true,
+          });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      // Save metadata to database
-      const { error: dbError } = await supabase
-        .from("drawings")
-        .insert({
-          user_id: user.id,
-          storage_path: fileName,
-          title: `Drawing ${new Date().toLocaleDateString()}`,
-        });
+        toast.success("Drawing updated!");
+        setIsOpen(false);
+      } else {
+        // Save new drawing
+        const fileName = `${user.id}/${Date.now()}.png`;
 
-      if (dbError) throw dbError;
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+          .from("drawings")
+          .upload(fileName, blob, {
+            contentType: "image/png",
+            upsert: false,
+          });
 
-      toast.success("Drawing saved to your library!");
+        if (uploadError) throw uploadError;
+
+        // Save metadata to database
+        const { error: dbError } = await supabase
+          .from("drawings")
+          .insert({
+            user_id: user.id,
+            storage_path: fileName,
+            title: `Drawing ${new Date().toLocaleDateString()}`,
+          });
+
+        if (dbError) throw dbError;
+
+        toast.success("Drawing saved to your library!");
+      }
     } catch (error) {
       console.error("Error saving drawing:", error);
       toast.error("Failed to save drawing");
@@ -262,7 +332,7 @@ export const DrawingCanvas = () => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="blue" className="gap-2">
           <Palette className="w-4 h-4" />
@@ -271,7 +341,9 @@ export const DrawingCanvas = () => {
       </DialogTrigger>
       <DialogContent className="max-w-5xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Christmas Drawing Canvas</DialogTitle>
+          <DialogTitle className="text-2xl">
+            {editingDrawing ? `Edit: ${editingDrawing.title}` : "Christmas Drawing Canvas"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 flex gap-4 overflow-hidden">
