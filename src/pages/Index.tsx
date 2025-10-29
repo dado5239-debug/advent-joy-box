@@ -5,6 +5,7 @@ import { AdventCalendar } from "@/components/AdventCalendar";
 import { TutorialModal } from "@/components/TutorialModal";
 import { VillageMaker } from "@/components/VillageMaker";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
+import { MiniCalendar } from "@/components/MiniCalendar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import adventHero from "@/assets/advent-hero.jpg";
@@ -156,6 +157,7 @@ const Index = () => {
               <Users className="w-4 h-4" />
               Community Gallery
             </Button>
+            <MiniCalendar />
             <VillageMaker />
             <DrawingCanvas />
             <Button
