@@ -139,7 +139,7 @@ const ChristmasAI = () => {
                 loop
                 muted
                 playsInline
-                className="absolute inset-0 w-full h-full object-cover opacity-20 -z-10"
+                className="absolute inset-0 w-full h-full object-cover opacity-20"
               >
                 <source
                   src="https://cdn.pixabay.com/video/2022/12/09/142571-779622095_large.mp4"
@@ -147,20 +147,22 @@ const ChristmasAI = () => {
                 />
               </video>
             )}
-            <h3 className="text-lg font-semibold mb-4">Generated Result:</h3>
-            {generationType === "song" ? (
-              <div className="whitespace-pre-wrap text-foreground font-medium text-lg leading-relaxed">
-                {result}
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <img 
-                  src={result} 
-                  alt="Generated Christmas drawing" 
-                  className="max-w-full h-auto rounded-lg shadow-lg"
-                />
-              </div>
-            )}
+            <div className="relative z-10">
+              <h3 className="text-lg font-semibold mb-4">🎵 Your Christmas {generationType === "song" ? "Carol" : "Drawing"}:</h3>
+              {generationType === "song" ? (
+                <div className="whitespace-pre-wrap text-foreground font-medium text-base md:text-lg leading-relaxed max-h-[500px] overflow-y-auto p-4 bg-background/50 backdrop-blur-sm rounded-lg">
+                  {result}
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <img 
+                    src={result} 
+                    alt="Generated Christmas drawing" 
+                    className="max-w-full h-auto rounded-lg shadow-lg"
+                  />
+                </div>
+              )}
+            </div>
           </Card>
         )}
       </div>

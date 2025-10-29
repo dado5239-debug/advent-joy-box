@@ -42,6 +42,10 @@ serve(async (req) => {
           model: "google/gemini-2.5-flash",
           messages: [
             {
+              role: "system",
+              content: "Generate short, festive Christmas songs with a title, 2 verses, and a chorus. Keep it concise and joyful. Maximum 200 words total.",
+            },
+            {
               role: "user",
               content: description,
             },
