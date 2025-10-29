@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Music, Palette, Sparkles, Save, Video } from "lucide-react";
+import { ArrowLeft, Music, Palette, Sparkles, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,7 +12,7 @@ const ChristmasAI = () => {
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string>("");
-  const [generationType, setGenerationType] = useState<"song" | "drawing" | "video">("song");
+  const [generationType, setGenerationType] = useState<"song" | "drawing">("song");
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -36,8 +36,6 @@ const ChristmasAI = () => {
     try {
       const description = generationType === "song" 
         ? `Generate a Christmas carol or song with these characteristics: ${prompt}. Include title, verses, and chorus. Format it beautifully with clear sections.`
-        : generationType === "video"
-        ? `Generate a cinematic Christmas video scene based on: ${prompt}`
         : `Generate a Christmas-themed drawing based on: ${prompt}`;
 
       const { data, error } = await supabase.functions.invoke("advero-generate", {
@@ -51,8 +49,10 @@ const ChristmasAI = () => {
 
       if (generationType === "song") {
         setResult(data.text || "Generated song will appear here");
-      } else if (data.imageUrl) {
-        setResult(data.imageUrl);
+      } else {
+        if (data.imageUrl) {
+          setResult(data.imageUrl);
+        }
       }
 
       toast.success(`Christmas ${generationType} generated successfully!`);
@@ -88,28 +88,6 @@ const ChristmasAI = () => {
 
         if (error) throw error;
         toast.success("Song saved to your library!");
-      } else if (generationType === "video") {
-        // For videos, save the image URL to storage first
-        const fileName = `${user.id}/${Date.now()}.png`;
-        
-        // Fetch the image data
-        const response = await fetch(result);
-        const blob = await response.blob();
-        
-        const { error: uploadError } = await supabase.storage
-          .from("videos")
-          .upload(fileName, blob);
-
-        if (uploadError) throw uploadError;
-
-        const { error: dbError } = await supabase.from("videos").insert({
-          user_id: user.id,
-          title: prompt.slice(0, 50) || "Untitled Video",
-          storage_path: fileName,
-        });
-
-        if (dbError) throw dbError;
-        toast.success("Video saved to your library!");
       } else {
         // For drawings, save the image URL to storage first
         const fileName = `${user.id}/${Date.now()}.png`;
@@ -168,7 +146,7 @@ const ChristmasAI = () => {
         </div>
 
         <Card className="p-6 mb-6">
-          <div className="flex gap-2 mb-6 justify-center flex-wrap">
+          <div className="flex gap-2 mb-6 justify-center">
             <Button
               variant={generationType === "song" ? "default" : "outline"}
               onClick={() => setGenerationType("song")}
@@ -185,14 +163,6 @@ const ChristmasAI = () => {
               <Palette className="w-4 h-4" />
               Christmas Drawings
             </Button>
-            <Button
-              variant={generationType === "video" ? "default" : "outline"}
-              onClick={() => setGenerationType("video")}
-              className="gap-2"
-            >
-              <Video className="w-4 h-4" />
-              Christmas Videos
-            </Button>
           </div>
 
           <div className="space-y-4">
@@ -200,16 +170,12 @@ const ChristmasAI = () => {
               <label className="text-sm font-medium mb-2 block">
                 {generationType === "song" 
                   ? "Describe your Christmas song or carol"
-                  : generationType === "video"
-                  ? "Describe your Christmas video scene"
                   : "Describe your Christmas drawing"}
               </label>
               <Textarea
                 placeholder={
                   generationType === "song"
                     ? "e.g., A joyful carol about snow falling on Christmas Eve..."
-                    : generationType === "video"
-                    ? "e.g., Santa flying through a snowy night sky with reindeer..."
                     : "e.g., A cozy fireplace with stockings and a Christmas tree..."
                 }
                 value={prompt}
@@ -225,7 +191,7 @@ const ChristmasAI = () => {
               size="lg"
             >
               <Sparkles className="w-5 h-5" />
-              {generating ? "Generating..." : `Generate ${generationType === "song" ? "Song" : generationType === "video" ? "Video" : "Drawing"}`}
+              {generating ? "Generating..." : `Generate ${generationType === "song" ? "Song" : "Drawing"}`}
             </Button>
           </div>
         </Card>
@@ -248,9 +214,7 @@ const ChristmasAI = () => {
             )}
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
-                  {generationType === "song" ? "🎵 Your Christmas Carol:" : generationType === "video" ? "🎬 Your Christmas Video:" : "🎨 Your Christmas Drawing:"}
-                </h3>
+                <h3 className="text-lg font-semibold">🎵 Your Christmas {generationType === "song" ? "Carol" : "Drawing"}:</h3>
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -270,7 +234,7 @@ const ChristmasAI = () => {
                 <div className="flex justify-center">
                   <img 
                     src={result} 
-                    alt={`Generated Christmas ${generationType}`}
+                    alt="Generated Christmas drawing" 
                     className="max-w-full h-auto rounded-lg shadow-lg"
                   />
                 </div>
