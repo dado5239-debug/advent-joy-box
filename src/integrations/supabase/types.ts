@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       drawings: {
         Row: {
           created_at: string
@@ -62,6 +89,36 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      villages: {
+        Row: {
+          created_at: string
+          id: string
+          storage_path: string
+          title: string
+          updated_at: string
+          user_id: string
+          village_data: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          storage_path: string
+          title?: string
+          updated_at?: string
+          user_id: string
+          village_data: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          storage_path?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          village_data?: Json
         }
         Relationships: []
       }

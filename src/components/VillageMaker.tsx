@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save } from "lucide-react";
 import { toast } from "sonner";
+import html2canvas from "html2canvas";
 
 interface VillageItem {
   id: string;
@@ -30,8 +34,28 @@ const ITEMS = [
 ];
 
 export const VillageMaker = () => {
+  const navigate = useNavigate();
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [placedItems, setPlacedItems] = useState<VillageItem[]>([]);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [title, setTitle] = useState("My Christmas Village");
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleDragStart = (type: string) => {
     setDraggedItem(type);
@@ -72,8 +96,66 @@ export const VillageMaker = () => {
     toast.info("Village cleared!");
   };
 
+  const saveVillage = async () => {
+    if (!user) {
+      toast.error("Please sign in to save your village");
+      navigate("/auth");
+      return;
+    }
+
+    if (placedItems.length === 0) {
+      toast.error("Please add some items to your village first!");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Capture canvas as image
+      if (!canvasRef.current) return;
+      
+      const canvas = await html2canvas(canvasRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+      });
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob!), "image/png");
+      });
+
+      // Upload to storage
+      const fileName = `${user.id}/${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("drawings")
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      // Save to database
+      const { error: dbError } = await supabase
+        .from("villages")
+        .insert({
+          user_id: user.id,
+          title: title,
+          village_data: placedItems,
+          storage_path: fileName,
+        });
+
+      if (dbError) throw dbError;
+
+      toast.success("Village saved successfully!");
+      setIsOpen(false);
+      setPlacedItems([]);
+      setTitle("My Christmas Village");
+    } catch (error) {
+      console.error("Error saving village:", error);
+      toast.error("Failed to save village");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="default" className="gap-2">
           <Home className="w-4 h-4" />
@@ -84,6 +166,23 @@ export const VillageMaker = () => {
         <DialogHeader>
           <DialogTitle className="text-2xl">Christmas Village Maker</DialogTitle>
         </DialogHeader>
+
+        <div className="flex gap-2 items-center mb-2">
+          <Input
+            placeholder="Village title..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="flex-1"
+          />
+          <Button
+            onClick={saveVillage}
+            disabled={isSaving || placedItems.length === 0}
+            className="gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? "Saving..." : "Save Village"}
+          </Button>
+        </div>
 
         <div className="flex-1 flex gap-4 overflow-hidden">
           {/* Toolbox */}
@@ -112,6 +211,7 @@ export const VillageMaker = () => {
 
           {/* Canvas */}
           <div
+            ref={canvasRef}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             className="flex-1 relative bg-gradient-to-b from-blue-100 to-white dark:from-blue-950 dark:to-slate-900 rounded-lg border-2 border-dashed border-primary/30 overflow-hidden"

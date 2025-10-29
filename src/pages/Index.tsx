@@ -8,7 +8,7 @@ import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import adventHero from "@/assets/advent-hero.jpg";
-import { Sparkles, Gift, LogOut, User } from "lucide-react";
+import { Sparkles, Gift, LogOut, User, Library, Home, Users } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -93,7 +93,7 @@ const Index = () => {
             </div>
             
             {user ? (
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center flex-wrap">
                 {profile && (
                   <div className="flex items-center gap-2 px-4 py-2 bg-card rounded-full border-2 border-primary/20">
                     <Avatar className="w-8 h-8">
@@ -105,6 +105,24 @@ const Index = () => {
                     <span className="text-sm font-medium">{profile.name}</span>
                   </div>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/library")}
+                  className="gap-2"
+                >
+                  <Library className="w-4 h-4" />
+                  My Drawings
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/my-villages")}
+                  className="gap-2"
+                >
+                  <Home className="w-4 h-4" />
+                  My Villages
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -126,7 +144,18 @@ const Index = () => {
                 Sign Up
               </Button>
             )}
-            
+          </div>
+          
+          <div className="flex gap-4 justify-center items-center flex-wrap mt-4">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => navigate("/community")}
+              className="gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Community Gallery
+            </Button>
             <VillageMaker />
             <DrawingCanvas />
             <Button
