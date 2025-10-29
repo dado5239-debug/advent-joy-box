@@ -28,11 +28,11 @@ serve(async (req) => {
       );
     }
 
-    // Handle song generation (text)
+    // Handle song generation (text only)
     if (type === "song") {
-      console.log("Generating Christmas song for description:", description);
+      console.log("Generating Christmas song with AI for:", description);
       
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const songResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -43,7 +43,7 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: "Generate short, festive Christmas songs with a title, 2 verses, and a chorus. Keep it concise and joyful. Maximum 200 words total.",
+              content: "You are a Christmas carol writer. Generate short, festive Christmas songs with a title, 2 verses, and a chorus. Keep it concise, joyful, and under 200 words. Format with clear sections using line breaks.",
             },
             {
               role: "user",
@@ -53,23 +53,23 @@ serve(async (req) => {
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI gateway error:", response.status, errorText);
+      if (!songResponse.ok) {
+        const errorText = await songResponse.text();
+        console.error("Song generation error:", songResponse.status, errorText);
         return new Response(
           JSON.stringify({ error: "Failed to generate song" }),
           {
-            status: response.status,
+            status: songResponse.status,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
 
-      const data = await response.json();
-      const songText = data.choices?.[0]?.message?.content;
+      const songData = await songResponse.json();
+      const songText = songData.choices?.[0]?.message?.content;
 
       if (!songText) {
-        console.error("No song text in response:", data);
+        console.error("No song text in response:", songData);
         return new Response(
           JSON.stringify({ error: "No song generated" }),
           {
@@ -79,7 +79,7 @@ serve(async (req) => {
         );
       }
 
-      console.log("Song generated successfully");
+      console.log("Christmas song generated successfully!");
 
       return new Response(
         JSON.stringify({ text: songText }),
