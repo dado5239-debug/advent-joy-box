@@ -117,7 +117,7 @@ const Index = () => {
               </div>
             ) : (
               <Button
-                variant="blue"
+                variant="green"
                 size="lg"
                 onClick={() => navigate("/auth")}
                 className="gap-2"

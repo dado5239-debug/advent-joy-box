@@ -32,6 +32,9 @@ All colors MUST be HSL.
     --blue: 220 90% 56%;
     --blue-foreground: 0 0% 100%;
 
+    --green: 142 76% 36%;
+    --green-foreground: 0 0% 100%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
@@ -95,6 +98,9 @@ All colors MUST be HSL.
 
     --blue: 220 90% 56%;
     --blue-foreground: 0 0% 100%;
+
+    --green: 142 76% 36%;
+    --green-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
