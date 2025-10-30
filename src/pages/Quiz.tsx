@@ -100,7 +100,7 @@ const Quiz = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [quizCompleted, setQuizCompleted] = useState(false);
-  const [hasCompletedToday, setHasCompletedToday] = useState(false);
+  const [hasEarnedMoneyToday, setHasEarnedMoneyToday] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -114,16 +114,16 @@ const Quiz = () => {
 
   useEffect(() => {
     if (user) {
-      checkDailyQuiz();
+      checkDailyMoney();
     }
   }, [user]);
 
-  const checkDailyQuiz = () => {
+  const checkDailyMoney = () => {
     const today = new Date().toDateString();
-    const lastQuizDate = localStorage.getItem(`quiz-completed-${user?.id}`);
+    const lastMoneyDate = localStorage.getItem(`quiz-money-${user?.id}`);
     
-    if (lastQuizDate === today) {
-      setHasCompletedToday(true);
+    if (lastMoneyDate === today) {
+      setHasEarnedMoneyToday(true);
     }
   };
 
@@ -151,15 +151,16 @@ const Quiz = () => {
 
   const completeQuiz = async () => {
     const finalScore = selectedAnswer === quizQuestions[currentQuestion].correct ? score + 1 : score;
-    const moneyEarned = finalScore === 5 ? 5 : 0; // Only get 5 money if all 5 are correct
+    const canEarnMoney = !hasEarnedMoneyToday && finalScore === 5;
+    const moneyEarned = canEarnMoney ? 5 : 0;
 
     setQuizCompleted(true);
     setScore(finalScore);
 
     if (!user) return;
 
-    // Update user currency only if perfect score
-    if (moneyEarned > 0) {
+    // Update user currency only if perfect score and haven't earned today
+    if (canEarnMoney) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("currency")
@@ -172,54 +173,31 @@ const Quiz = () => {
           .update({ currency: (profile.currency || 0) + moneyEarned })
           .eq("user_id", user.id);
       }
-    }
 
-    // Mark quiz as completed for today
-    const today = new Date().toDateString();
-    localStorage.setItem(`quiz-completed-${user.id}`, today);
-    setHasCompletedToday(true);
+      // Mark money as earned for today
+      const today = new Date().toDateString();
+      localStorage.setItem(`quiz-money-${user.id}`, today);
+      setHasEarnedMoneyToday(true);
 
-    if (moneyEarned > 0) {
       toast.success(`Perfect score! You earned ${moneyEarned} money! 🎄`);
+    } else if (finalScore === 5 && hasEarnedMoneyToday) {
+      toast.info(`Perfect score! But you've already earned money today. Come back tomorrow!`);
     } else {
       toast.info(`Quiz completed! You scored ${finalScore}/5. Get all correct to earn money!`);
     }
   };
 
-  if (hasCompletedToday && !quizCompleted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 p-6">
-        <div className="max-w-2xl mx-auto">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/")}
-            className="mb-6 gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </Button>
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Quiz Completed! ✅</CardTitle>
-              <CardDescription>
-                You've already completed today's quiz. Come back tomorrow for a new challenge!
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center py-8">
-              <Gift className="w-24 h-24 mx-auto text-primary mb-4 animate-float" />
-              <p className="text-lg text-muted-foreground">
-                Keep collecting money to become VIP! 🌟
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  const handleRetakeQuiz = () => {
+    setQuizQuestions(getRandomQuestions());
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setScore(0);
+    setQuizCompleted(false);
+  };
 
   if (quizCompleted) {
     const finalScore = score;
-    const moneyEarned = finalScore === 5 ? 5 : 0;
+    const earnedMoney = finalScore === 5 && !hasEarnedMoneyToday;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 p-6">
@@ -241,24 +219,38 @@ const Quiz = () => {
             </CardHeader>
             <CardContent className="text-center py-8">
               <Gift className="w-24 h-24 mx-auto text-primary mb-4 animate-float" />
-              {moneyEarned > 0 ? (
+              {earnedMoney ? (
                 <>
-                  <p className="text-2xl font-bold mb-2">Perfect Score! You earned {moneyEarned} money! 💰</p>
+                  <p className="text-2xl font-bold mb-2">Perfect Score! You earned 5 money! 💰</p>
                   <p className="text-muted-foreground mb-6">
-                    Amazing job! Come back tomorrow for a new daily quiz!
+                    Amazing job! Come back tomorrow to earn more money!
+                  </p>
+                </>
+              ) : finalScore === 5 && hasEarnedMoneyToday ? (
+                <>
+                  <p className="text-2xl font-bold mb-2">Perfect Score! 🌟</p>
+                  <p className="text-muted-foreground mb-6">
+                    You already earned money today. Try again tomorrow to earn more!
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-2xl font-bold mb-2">You earned 0 money</p>
+                  <p className="text-2xl font-bold mb-2">Score: {finalScore}/5</p>
                   <p className="text-muted-foreground mb-6">
-                    Get all 5 questions correct to earn 5 money! Try again tomorrow!
+                    {hasEarnedMoneyToday 
+                      ? "You've already earned money today. Practice for tomorrow!" 
+                      : "Get all 5 questions correct to earn 5 money!"}
                   </p>
                 </>
               )}
-              <Button onClick={() => navigate("/")} size="lg">
-                Return to Home
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={handleRetakeQuiz} size="lg" variant="outline">
+                  Try Again
+                </Button>
+                <Button onClick={() => navigate("/")} size="lg">
+                  Return to Home
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
