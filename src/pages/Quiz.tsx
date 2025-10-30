@@ -101,6 +101,7 @@ const Quiz = () => {
   const [score, setScore] = useState(0);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [hasEarnedMoneyToday, setHasEarnedMoneyToday] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<number[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -137,6 +138,9 @@ const Quiz = () => {
       return;
     }
 
+    const newAnswers = [...userAnswers, selectedAnswer];
+    setUserAnswers(newAnswers);
+
     if (selectedAnswer === quizQuestions[currentQuestion].correct) {
       setScore(score + 1);
     }
@@ -145,11 +149,11 @@ const Quiz = () => {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
     } else {
-      completeQuiz();
+      completeQuiz(newAnswers);
     }
   };
 
-  const completeQuiz = async () => {
+  const completeQuiz = async (answers: number[]) => {
     const finalScore = selectedAnswer === quizQuestions[currentQuestion].correct ? score + 1 : score;
     const canEarnMoney = !hasEarnedMoneyToday && finalScore === 5;
     const moneyEarned = canEarnMoney ? 5 : 0;
@@ -193,6 +197,7 @@ const Quiz = () => {
     setSelectedAnswer(null);
     setScore(0);
     setQuizCompleted(false);
+    setUserAnswers([]);
   };
 
   if (quizCompleted) {
@@ -251,6 +256,30 @@ const Quiz = () => {
                   Return to Home
                 </Button>
               </div>
+
+              {finalScore < 5 && (
+                <div className="mt-8 space-y-4">
+                  <h3 className="text-lg font-semibold">Review Your Answers:</h3>
+                  {quizQuestions.map((question, index) => {
+                    const userAnswer = userAnswers[index];
+                    const isCorrect = userAnswer === question.correct;
+                    
+                    if (isCorrect) return null;
+
+                    return (
+                      <div key={index} className="p-4 rounded-lg bg-muted/50 border border-destructive/20">
+                        <p className="font-medium mb-2">Question {index + 1}: {question.question}</p>
+                        <p className="text-destructive mb-1">
+                          ❌ Your answer: {question.options[userAnswer]}
+                        </p>
+                        <p className="text-green-600">
+                          ✓ Correct answer: {question.options[question.correct]}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
