@@ -9,99 +9,24 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Gift, ArrowLeft } from "lucide-react";
 
-const allQuestions = [
-  {
-    question: "What is the most popular Christmas carol of all time?",
-    options: ["Jingle Bells", "Silent Night", "White Christmas", "Deck the Halls"],
-    correct: 1
-  },
-  {
-    question: "In which country did the tradition of the Christmas tree originate?",
-    options: ["USA", "Germany", "England", "France"],
-    correct: 1
-  },
-  {
-    question: "What are the traditional colors of Christmas?",
-    options: ["Blue and Silver", "Red and Green", "Gold and White", "Purple and Pink"],
-    correct: 1
-  },
-  {
-    question: "How many reindeer pull Santa's sleigh (including Rudolph)?",
-    options: ["8", "9", "10", "12"],
-    correct: 1
-  },
-  {
-    question: "What is traditionally hidden inside a Christmas pudding?",
-    options: ["A ring", "A coin", "A button", "A thimble"],
-    correct: 1
-  },
-  {
-    question: "What year was 'Jingle Bells' written?",
-    options: ["1857", "1900", "1920", "1945"],
-    correct: 0
-  },
-  {
-    question: "Which country started the tradition of putting up a Christmas tree?",
-    options: ["Norway", "Germany", "Poland", "Austria"],
-    correct: 1
-  },
-  {
-    question: "What does Santa fill stockings with if children are naughty?",
-    options: ["Nothing", "Coal", "Rocks", "Sticks"],
-    correct: 1
-  },
-  {
-    question: "What is Frosty the Snowman's nose made of?",
-    options: ["A carrot", "A button", "A coal", "A stick"],
-    correct: 1
-  },
-  {
-    question: "How many ghosts visit Scrooge in 'A Christmas Carol'?",
-    options: ["3", "4", "5", "2"],
-    correct: 1
-  },
-  {
-    question: "What Christmas decoration was originally made from silver?",
-    options: ["Ornaments", "Tinsel", "Garland", "Stars"],
-    correct: 1
-  },
-  {
-    question: "What is the name of the Grinch's dog?",
-    options: ["Max", "Buddy", "Rex", "Spot"],
-    correct: 0
-  },
-  {
-    question: "Which country does St. Nicholas come from?",
-    options: ["Finland", "Turkey", "Greece", "Russia"],
-    correct: 1
-  },
-  {
-    question: "What do people traditionally put on top of a Christmas tree?",
-    options: ["A star", "An angel", "A bow", "Both A and B"],
-    correct: 3
-  },
-  {
-    question: "In 'Home Alone', where are the McCallisters going on vacation?",
-    options: ["London", "Paris", "Rome", "Madrid"],
-    correct: 1
-  }
-];
-
-const getRandomQuestions = () => {
-  const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 5);
-};
+interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_answer_index: number;
+}
 
 const Quiz = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [quizQuestions, setQuizQuestions] = useState(getRandomQuestions());
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [hasEarnedMoneyToday, setHasEarnedMoneyToday] = useState(false);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -109,9 +34,44 @@ const Quiz = () => {
       if (!session?.user) {
         toast.error("Please sign in to take the quiz");
         navigate("/auth");
+      } else {
+        loadRandomQuestions();
       }
     });
   }, [navigate]);
+
+  const loadRandomQuestions = async () => {
+    try {
+      setLoading(true);
+      // Fetch all questions
+      const { data: allQuestions, error } = await supabase
+        .from("quiz_questions")
+        .select("*");
+
+      if (error) throw error;
+
+      if (!allQuestions || allQuestions.length === 0) {
+        toast.error("No questions available");
+        return;
+      }
+
+      // Shuffle and take 5 random questions
+      const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+      const selectedQuestions = shuffled.slice(0, 5).map(q => ({
+        id: q.id,
+        question: q.question,
+        options: q.options as string[],
+        correct_answer_index: q.correct_answer_index
+      }));
+
+      setQuizQuestions(selectedQuestions);
+    } catch (error) {
+      console.error("Error loading questions:", error);
+      toast.error("Failed to load quiz questions");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -141,7 +101,7 @@ const Quiz = () => {
     const newAnswers = [...userAnswers, selectedAnswer];
     setUserAnswers(newAnswers);
 
-    if (selectedAnswer === quizQuestions[currentQuestion].correct) {
+    if (selectedAnswer === quizQuestions[currentQuestion].correct_answer_index) {
       setScore(score + 1);
     }
 
@@ -154,7 +114,7 @@ const Quiz = () => {
   };
 
   const completeQuiz = async (answers: number[]) => {
-    const finalScore = selectedAnswer === quizQuestions[currentQuestion].correct ? score + 1 : score;
+    const finalScore = selectedAnswer === quizQuestions[currentQuestion].correct_answer_index ? score + 1 : score;
     const canEarnMoney = !hasEarnedMoneyToday && finalScore === 5;
     const moneyEarned = canEarnMoney ? 5 : 0;
 
@@ -192,12 +152,12 @@ const Quiz = () => {
   };
 
   const handleRetakeQuiz = () => {
-    setQuizQuestions(getRandomQuestions());
     setCurrentQuestion(0);
     setSelectedAnswer(null);
     setScore(0);
     setQuizCompleted(false);
     setUserAnswers([]);
+    loadRandomQuestions();
   };
 
   if (quizCompleted) {
@@ -262,18 +222,18 @@ const Quiz = () => {
                   <h3 className="text-lg font-semibold">Review Your Answers:</h3>
                   {quizQuestions.map((question, index) => {
                     const userAnswer = userAnswers[index];
-                    const isCorrect = userAnswer === question.correct;
+                    const isCorrect = userAnswer === question.correct_answer_index;
                     
                     if (isCorrect) return null;
 
                     return (
-                      <div key={index} className="p-4 rounded-lg bg-muted/50 border border-destructive/20">
+                      <div key={question.id} className="p-4 rounded-lg bg-muted/50 border border-destructive/20">
                         <p className="font-medium mb-2">Question {index + 1}: {question.question}</p>
                         <p className="text-destructive mb-1">
                           ❌ Your answer: {question.options[userAnswer]}
                         </p>
                         <p className="text-green-600">
-                          ✓ Correct answer: {question.options[question.correct]}
+                          ✓ Correct answer: {question.options[question.correct_answer_index]}
                         </p>
                       </div>
                     );
@@ -283,6 +243,18 @@ const Quiz = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
+    );
+  }
+
+  if (loading || quizQuestions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 p-6 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8 text-center">
+            <p className="text-lg">Loading quiz questions...</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

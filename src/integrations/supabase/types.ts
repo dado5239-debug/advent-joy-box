@@ -146,6 +146,30 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_questions: {
+        Row: {
+          correct_answer_index: number
+          created_at: string
+          id: string
+          options: Json
+          question: string
+        }
+        Insert: {
+          correct_answer_index: number
+          created_at?: string
+          id?: string
+          options: Json
+          question: string
+        }
+        Update: {
+          correct_answer_index?: number
+          created_at?: string
+          id?: string
+          options?: Json
+          question?: string
+        }
+        Relationships: []
+      }
       songs: {
         Row: {
           content: string
