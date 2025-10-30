@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Gift, ArrowLeft } from "lucide-react";
 
-const quizQuestions = [
+const allQuestions = [
   {
     question: "What is the most popular Christmas carol of all time?",
     options: ["Jingle Bells", "Silent Night", "White Christmas", "Deck the Halls"],
@@ -34,12 +34,68 @@ const quizQuestions = [
     question: "What is traditionally hidden inside a Christmas pudding?",
     options: ["A ring", "A coin", "A button", "A thimble"],
     correct: 1
+  },
+  {
+    question: "What year was 'Jingle Bells' written?",
+    options: ["1857", "1900", "1920", "1945"],
+    correct: 0
+  },
+  {
+    question: "Which country started the tradition of putting up a Christmas tree?",
+    options: ["Norway", "Germany", "Poland", "Austria"],
+    correct: 1
+  },
+  {
+    question: "What does Santa fill stockings with if children are naughty?",
+    options: ["Nothing", "Coal", "Rocks", "Sticks"],
+    correct: 1
+  },
+  {
+    question: "What is Frosty the Snowman's nose made of?",
+    options: ["A carrot", "A button", "A coal", "A stick"],
+    correct: 1
+  },
+  {
+    question: "How many ghosts visit Scrooge in 'A Christmas Carol'?",
+    options: ["3", "4", "5", "2"],
+    correct: 1
+  },
+  {
+    question: "What Christmas decoration was originally made from silver?",
+    options: ["Ornaments", "Tinsel", "Garland", "Stars"],
+    correct: 1
+  },
+  {
+    question: "What is the name of the Grinch's dog?",
+    options: ["Max", "Buddy", "Rex", "Spot"],
+    correct: 0
+  },
+  {
+    question: "Which country does St. Nicholas come from?",
+    options: ["Finland", "Turkey", "Greece", "Russia"],
+    correct: 1
+  },
+  {
+    question: "What do people traditionally put on top of a Christmas tree?",
+    options: ["A star", "An angel", "A bow", "Both A and B"],
+    correct: 3
+  },
+  {
+    question: "In 'Home Alone', where are the McCallisters going on vacation?",
+    options: ["London", "Paris", "Rome", "Madrid"],
+    correct: 1
   }
 ];
+
+const getRandomQuestions = () => {
+  const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 5);
+};
 
 const Quiz = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [quizQuestions, setQuizQuestions] = useState(getRandomQuestions());
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -95,24 +151,27 @@ const Quiz = () => {
 
   const completeQuiz = async () => {
     const finalScore = selectedAnswer === quizQuestions[currentQuestion].correct ? score + 1 : score;
-    const moneyEarned = finalScore * 5; // 5 money per correct answer
+    const moneyEarned = finalScore === 5 ? 5 : 0; // Only get 5 money if all 5 are correct
 
     setQuizCompleted(true);
+    setScore(finalScore);
 
     if (!user) return;
 
-    // Update user currency
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("currency")
-      .eq("user_id", user.id)
-      .single();
-
-    if (profile) {
-      await supabase
+    // Update user currency only if perfect score
+    if (moneyEarned > 0) {
+      const { data: profile } = await supabase
         .from("profiles")
-        .update({ currency: (profile.currency || 0) + moneyEarned })
-        .eq("user_id", user.id);
+        .select("currency")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        await supabase
+          .from("profiles")
+          .update({ currency: (profile.currency || 0) + moneyEarned })
+          .eq("user_id", user.id);
+      }
     }
 
     // Mark quiz as completed for today
@@ -120,7 +179,11 @@ const Quiz = () => {
     localStorage.setItem(`quiz-completed-${user.id}`, today);
     setHasCompletedToday(true);
 
-    toast.success(`Quiz completed! You earned ${moneyEarned} money! 🎄`);
+    if (moneyEarned > 0) {
+      toast.success(`Perfect score! You earned ${moneyEarned} money! 🎄`);
+    } else {
+      toast.info(`Quiz completed! You scored ${finalScore}/5. Get all correct to earn money!`);
+    }
   };
 
   if (hasCompletedToday && !quizCompleted) {
@@ -156,7 +219,7 @@ const Quiz = () => {
 
   if (quizCompleted) {
     const finalScore = score;
-    const moneyEarned = finalScore * 5;
+    const moneyEarned = finalScore === 5 ? 5 : 0;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 p-6">
@@ -173,15 +236,26 @@ const Quiz = () => {
             <CardHeader>
               <CardTitle>Quiz Completed! 🎉</CardTitle>
               <CardDescription>
-                You got {finalScore} out of {quizQuestions.length} questions correct!
+                You got {finalScore} out of 5 questions correct!
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center py-8">
               <Gift className="w-24 h-24 mx-auto text-primary mb-4 animate-float" />
-              <p className="text-2xl font-bold mb-2">You earned {moneyEarned} money! 💰</p>
-              <p className="text-muted-foreground mb-6">
-                Come back tomorrow for a new daily quiz!
-              </p>
+              {moneyEarned > 0 ? (
+                <>
+                  <p className="text-2xl font-bold mb-2">Perfect Score! You earned {moneyEarned} money! 💰</p>
+                  <p className="text-muted-foreground mb-6">
+                    Amazing job! Come back tomorrow for a new daily quiz!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold mb-2">You earned 0 money</p>
+                  <p className="text-muted-foreground mb-6">
+                    Get all 5 questions correct to earn 5 money! Try again tomorrow!
+                  </p>
+                </>
+              )}
               <Button onClick={() => navigate("/")} size="lg">
                 Return to Home
               </Button>
