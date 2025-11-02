@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Video, Gamepad2, X, Circle, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PhoneModalProps {
   isOpen: boolean;
@@ -130,18 +131,16 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
     setSelectedVideo(video.title);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/advero-generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('advero-generate', {
+        body: {
           description: `Write a short, festive Christmas song for "${video.title}". Keep it under 100 words with verses and chorus.`,
           type: 'song'
-        })
+        }
       });
 
-      const data = await response.json();
+      if (error) throw error;
       
-      if (data.text && 'speechSynthesis' in window) {
+      if (data?.text && 'speechSynthesis' in window) {
         const utterance = new SpeechSynthesisUtterance(data.text);
         utterance.rate = 0.9;
         utterance.pitch = 1.1;
