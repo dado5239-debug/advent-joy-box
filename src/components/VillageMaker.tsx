@@ -190,6 +190,8 @@ export const VillageMaker = () => {
   const [showMinimap, setShowMinimap] = useState(true);
   const [tvNewsOpen, setTvNewsOpen] = useState(false);
   const [villageNews, setVillageNews] = useState<string[]>([]);
+  const [bookOpen, setBookOpen] = useState(false);
+  const [bookContent, setBookContent] = useState<string>("");
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -1841,6 +1843,34 @@ export const VillageMaker = () => {
                         return;
                       }
                       
+                      // Book functionality
+                      if (item.type === "book") {
+                        const bookTexts = [
+                          "Once upon a time in a snowy village, families gathered around warm fires...",
+                          "The art of woodworking: A guide to building beautiful homes from trees...",
+                          "Tales from the winter: Stories of survival and community...",
+                          "The Village Chronicles: Life through the seasons..."
+                        ];
+                        setBookContent(bookTexts[Math.floor(Math.random() * bookTexts.length)]);
+                        setBookOpen(true);
+                        toast.info("📖 Reading book...");
+                        return;
+                      }
+                      
+                      // Bible functionality
+                      if (item.type === "bible") {
+                        const bibleVerses = [
+                          "\"Love thy neighbor as thyself\" - A message of kindness and community",
+                          "\"In everything, do to others what you would have them do to you\" - The Golden Rule",
+                          "\"Blessed are the peacemakers, for they will be called children of God\"",
+                          "\"For where two or three gather in my name, there am I with them\""
+                        ];
+                        setBookContent(bibleVerses[Math.floor(Math.random() * bibleVerses.length)]);
+                        setBookOpen(true);
+                        toast.info("📖 Reading the Bible...");
+                        return;
+                      }
+                      
                       // TV functionality - show village news and YouTuber videos
                       if (item.type === "tv") {
                         const livingCount = placedItems.filter(i => ITEMS.find(t => t.type === i.type)?.isLiving).length;
@@ -2202,6 +2232,23 @@ export const VillageMaker = () => {
                 {newsItem}
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Book/Bible Reading Dialog */}
+      <Dialog open={bookOpen} onOpenChange={setBookOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              📖 Reading
+            </DialogTitle>
+            <DialogDescription>Enjoying some literature</DialogDescription>
+          </DialogHeader>
+          <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border-2 border-amber-200 dark:border-amber-800">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {bookContent}
+            </p>
           </div>
         </DialogContent>
       </Dialog>
