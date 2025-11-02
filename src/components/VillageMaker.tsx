@@ -1840,12 +1840,13 @@ export const VillageMaker = () => {
                         return;
                       }
                       
-                      // TV functionality - show village news
+                      // TV functionality - show village news and YouTuber videos
                       if (item.type === "tv") {
                         const livingCount = placedItems.filter(i => ITEMS.find(t => t.type === i.type)?.isLiving).length;
                         const houseCount = placedItems.filter(i => i.type === "house").length;
                         const treeCount = placedItems.filter(i => i.type === "tree").length;
                         const currentTime = timeOfDay >= 20 || timeOfDay < 6 ? "night" : "day";
+                        const youtubers = placedItems.filter(i => i.type === "youtuber" || i.job === "youtuber");
                         
                         const news = [
                           `📺 VILLAGE NEWS - Year ${currentYear}`,
@@ -1856,11 +1857,14 @@ export const VillageMaker = () => {
                           `🎄 Season: Christmas season is here!`,
                           placedItems.some(i => i.isMarried) ? `💍 Recent marriages in the village!` : '',
                           placedItems.some(i => i.type === "baby") ? `👶 New babies born recently!` : '',
+                          '',
+                          youtubers.length > 0 ? `📱 YOUTUBE VIDEOS:` : '',
+                          ...youtubers.map(yt => `▶️ ${yt.name || 'YouTuber'}: "Life in the Village Vlog #${Math.floor(Math.random() * 100)}"`),
                         ].filter(Boolean);
                         
                         setVillageNews(news);
                         setTvNewsOpen(true);
-                        toast.info("📺 Watching village news...");
+                        toast.info("📺 Watching village TV...");
                         return;
                       }
                       
@@ -2175,7 +2179,11 @@ export const VillageMaker = () => {
           )}
         </div>
       </DialogContent>
-      <PhoneModal isOpen={phoneOpen} onClose={() => setPhoneOpen(false)} />
+      <PhoneModal 
+        isOpen={phoneOpen} 
+        onClose={() => setPhoneOpen(false)}
+        youtubers={placedItems.filter(i => i.type === "youtuber" || i.job === "youtuber")}
+      />
       
       {/* TV News Dialog */}
       <Dialog open={tvNewsOpen} onOpenChange={setTvNewsOpen}>

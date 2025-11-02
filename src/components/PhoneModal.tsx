@@ -8,10 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 interface PhoneModalProps {
   isOpen: boolean;
   onClose: () => void;
+  youtubers?: Array<{ name?: string; id: string }>;
 }
 
-export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
-  const [activeApp, setActiveApp] = useState<"home" | "videos" | "tictactoe">("home");
+export const PhoneModal = ({ isOpen, onClose, youtubers = [] }: PhoneModalProps) => {
+  const [activeApp, setActiveApp] = useState<"home" | "videos" | "tictactoe" | "youtube">("home");
   const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
   const [isXTurn, setIsXTurn] = useState(true);
   const [winner, setWinner] = useState<string | null>(null);
@@ -183,6 +184,14 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
         <Gamepad2 className="w-8 h-8 text-purple-500" />
         <span>Tic Tac Toe</span>
       </Button>
+      <Button
+        variant="outline"
+        className="h-24 flex flex-col gap-2 col-span-2"
+        onClick={() => setActiveApp("youtube")}
+      >
+        <Video className="w-8 h-8 text-red-600" />
+        <span>YouTube</span>
+      </Button>
     </div>
   );
 
@@ -305,6 +314,53 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
     </div>
   );
 
+  const renderYouTube = () => (
+    <div className="p-4 space-y-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setActiveApp("home")}
+        className="mb-2"
+      >
+        ← Back
+      </Button>
+      {youtubers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-4">
+          <Video className="w-16 h-16 text-red-600" />
+          <p className="text-lg font-semibold">No YouTubers Yet</p>
+          <p className="text-sm text-muted-foreground text-center">
+            Wait for people to become YouTubers at age 30!
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold mb-3">📱 YouTuber Videos</p>
+          {youtubers.map((yt) => (
+            <div
+              key={yt.id}
+              className="bg-muted p-3 rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-12 bg-red-600 rounded flex items-center justify-center text-white text-xl">
+                  ▶️
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{yt.name || "YouTuber"}</p>
+                  <p className="text-xs opacity-70">
+                    Village Vlog #{Math.floor(Math.random() * 100) + 1}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.floor(Math.random() * 50) + 10}K views
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -317,6 +373,7 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
           {activeApp === "home" && renderHome()}
           {activeApp === "videos" && renderVideos()}
           {activeApp === "tictactoe" && renderTicTacToe()}
+          {activeApp === "youtube" && renderYouTube()}
         </div>
       </DialogContent>
     </Dialog>
