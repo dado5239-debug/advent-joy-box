@@ -561,8 +561,11 @@ export const VillageMaker = () => {
           };
         }).filter(item => item !== null) as VillageItem[];
 
-        // Grow trees randomly if there are people
-        if (livingItems.length > 0 && Math.random() < 0.15) {
+        // Grow trees randomly if there are people (max 10 trees)
+        const currentTreeCount = newItems.filter(item => item.type === "tree").length;
+        // Higher spawn rate when below max trees (to replace chopped ones)
+        const treeSpawnChance = currentTreeCount < 10 ? 0.25 : 0;
+        if (livingItems.length > 0 && currentTreeCount < 10 && Math.random() < treeSpawnChance) {
           const randomPerson = livingItems[Math.floor(Math.random() * livingItems.length)];
           const newTree: VillageItem = {
             id: `tree-${Date.now()}-${Math.random()}`,
