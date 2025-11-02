@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
@@ -25,6 +25,16 @@ interface VillageItem {
   hunger?: number; // 100 = full, 0 = starving
   thirst?: number; // 100 = hydrated, 0 = dehydrated
   toys?: number; // toys inventory
+  interior?: VillageItem[]; // items inside this house
+  currentHouse?: string; // id of house the person is in
+}
+
+interface HouseInteriorItem {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  icon: any;
 }
 
 const ITEMS = [
@@ -38,6 +48,7 @@ const ITEMS = [
   { type: "food-item", icon: Apple, label: "Food", color: "text-red-400", isLiving: false, isFood: true },
   { type: "water-item", icon: Droplet, label: "Water", color: "text-blue-400", isLiving: false, isWater: true },
   { type: "toy", icon: Gamepad2, label: "Toy", color: "text-purple-400", isLiving: false, isToy: true },
+  { type: "park", icon: TentTree, label: "Park", color: "text-green-500", isLiving: false, isPark: true },
   { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true, babyType: "baby" },
   { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true, babyType: "baby" },
   { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "person" },
@@ -51,6 +62,15 @@ const ITEMS = [
   { type: "bunny", icon: Rabbit, label: "Bunny", color: "text-gray-300", isLiving: true, growsInto: "rabbit" },
   { type: "squirrel", icon: Squirrel, label: "Squirrel", color: "text-amber-500", isLiving: true, babyType: "kit" },
   { type: "kit", icon: Squirrel, label: "Kit", color: "text-amber-300", isLiving: true, growsInto: "squirrel" },
+];
+
+const INTERIOR_ITEMS = [
+  { type: "bed", icon: Bed, label: "Bed", color: "text-blue-600" },
+  { type: "chair", icon: Armchair, label: "Chair", color: "text-amber-600" },
+  { type: "lamp", icon: Lamp, label: "Lamp", color: "text-yellow-500" },
+  { type: "tree-decor", icon: Trees, label: "Xmas Tree", color: "text-green-500" },
+  { type: "star-decor", icon: Star, label: "Star Decor", color: "text-yellow-400" },
+  { type: "gift-decor", icon: Gift, label: "Gift Decor", color: "text-pink-400" },
 ];
 
 const SPEECH_OPTIONS = [
@@ -79,6 +99,8 @@ export const VillageMaker = () => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [exploreMode, setExploreMode] = useState(false);
   const [playerPos, setPlayerPos] = useState({ x: 400, y: 300 });
+  const [viewingHouse, setViewingHouse] = useState<string | null>(null);
+  const [timeOfDay, setTimeOfDay] = useState(12); // 0-24 hours, 12 = noon
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -134,6 +156,9 @@ export const VillageMaker = () => {
       // Increment year every cycle (2 seconds = 1 year in village time)
       setCurrentYear(prev => prev + 1);
       
+      // Advance time of day (2 hours per cycle)
+      setTimeOfDay(prev => (prev + 2) % 24);
+      
       setPlacedItems(prev => {
         let newItems = [...prev];
         const livingItems = newItems.filter(item => ITEMS.find(i => i.type === item.type)?.isLiving);
@@ -143,6 +168,10 @@ export const VillageMaker = () => {
         const waterItems = newItems.filter(item => item.type === "water-item");
         const presents = newItems.filter(item => item.type === "gift");
         const toyItems = newItems.filter(item => item.type === "toy");
+        const houses = newItems.filter(item => item.type === "house");
+        const parks = newItems.filter(item => item.type === "park");
+        
+        const isNight = timeOfDay >= 20 || timeOfDay < 6;
         
         // Update existing items
         newItems = newItems.map(item => {
@@ -171,9 +200,98 @@ export const VillageMaker = () => {
             return null; // Mark for removal
           }
 
-          // Random movement (walking)
+          // Night time behavior - seek house to sleep
+          if (isNight && !item.currentHouse) {
+            const nearbyHouse = houses.find(house => {
+              const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
+              return distance < 60;
+            });
+            
+            if (nearbyHouse) {
+              // Enter house to sleep
+              return {
+                ...item,
+                currentHouse: nearbyHouse.id,
+                speech: "😴 Going to sleep...",
+                showSpeech: true,
+              };
+            } else {
+              // Move towards nearest house
+              const nearestHouse = houses.reduce((nearest, house) => {
+                const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
+                const nearestDistance = nearest ? Math.sqrt(Math.pow(nearest.x - item.x, 2) + Math.pow(nearest.y - item.y, 2)) : Infinity;
+                return distance < nearestDistance ? house : nearest;
+              }, null as VillageItem | null);
+              
+              if (nearestHouse) {
+                const dx = nearestHouse.x - item.x;
+                const dy = nearestHouse.y - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const moveX = (dx / distance) * 15;
+                const moveY = (dy / distance) * 15;
+                
+                return {
+                  ...item,
+                  x: Math.max(50, Math.min(item.x + moveX, 750)),
+                  y: Math.max(50, Math.min(item.y + moveY, 550)),
+                  speech: "🌙 Time for bed...",
+                  showSpeech: Math.random() < 0.2,
+                };
+              }
+            }
+          }
+          
+          // Day time - leave house if inside
+          if (!isNight && item.currentHouse) {
+            const house = houses.find(h => h.id === item.currentHouse);
+            if (house) {
+              return {
+                ...item,
+                currentHouse: undefined,
+                x: house.x + (Math.random() - 0.5) * 50,
+                y: house.y + (Math.random() - 0.5) * 50,
+                speech: "☀️ Good morning!",
+                showSpeech: true,
+              };
+            }
+          }
+          
+          // If inside house, skip all outdoor activities
+          if (item.currentHouse) {
+            return {
+              ...item,
+              hunger: newHunger,
+              thirst: newThirst,
+            };
+          }
+
+          // Random movement (walking) - only during day
           let moveX = (Math.random() - 0.5) * 20;
           let moveY = (Math.random() - 0.5) * 20;
+          
+          // Sometimes go to park to play
+          if (!isNight && Math.random() < 0.1) {
+            const nearbyPark = parks.find(park => {
+              const distance = Math.sqrt(Math.pow(park.x - item.x, 2) + Math.pow(park.y - item.y, 2));
+              return distance < 60;
+            });
+            
+            if (nearbyPark && Math.random() < 0.3) {
+              return {
+                ...item,
+                speech: "🎮 Playing in the park!",
+                showSpeech: true,
+                x: nearbyPark.x + (Math.random() - 0.5) * 30,
+                y: nearbyPark.y + (Math.random() - 0.5) * 30,
+                hunger: newHunger,
+                thirst: newThirst,
+                wood: newWood,
+                food: newFood,
+                water: newWater,
+                toys: newToys,
+              };
+            }
+          }
 
           // Find nearest tree to chop
           if (item.type === "person" || item.type === "family") {
@@ -194,15 +312,43 @@ export const VillageMaker = () => {
 
             // Build house if enough wood
             if (newWood >= 5 && Math.random() < 0.2) {
-              newItems.push({
+              const newHouse: VillageItem = {
                 id: `house-${Date.now()}-${Math.random()}`,
                 type: "house",
                 x: item.x + 30,
                 y: item.y + 30,
                 icon: Home,
-              });
+                interior: [], // Empty interior initially
+              };
+              newItems.push(newHouse);
               newWood -= 5;
               toast.success("🏠 Built a house!");
+            }
+            
+            // Decorate houses automatically
+            if (newToys > 0 && Math.random() < 0.15) {
+              const nearbyHouse = houses.find(house => {
+                const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
+                return distance < 50;
+              });
+              
+              if (nearbyHouse && (!nearbyHouse.interior || nearbyHouse.interior.length < 10)) {
+                const houseIndex = newItems.findIndex(h => h.id === nearbyHouse.id);
+                if (houseIndex !== -1) {
+                  const decorItem = INTERIOR_ITEMS[Math.floor(Math.random() * INTERIOR_ITEMS.length)];
+                  const interior = nearbyHouse.interior || [];
+                  interior.push({
+                    id: `decor-${Date.now()}-${Math.random()}`,
+                    type: decorItem.type,
+                    x: 100 + Math.random() * 400,
+                    y: 100 + Math.random() * 300,
+                    icon: decorItem.icon,
+                  });
+                  newItems[houseIndex] = { ...nearbyHouse, interior };
+                  newToys -= 1;
+                  toast.success("🎨 Decorated house!");
+                }
+              }
             }
 
             // Break presents for toys
@@ -449,6 +595,11 @@ export const VillageMaker = () => {
       age: 100,
       size: 1,
     };
+    
+    // Initialize house with empty interior
+    if (draggedItem === "house") {
+      newItem.interior = [];
+    }
 
     // Initialize resources for living items
     if (item.isLiving) {
@@ -473,7 +624,46 @@ export const VillageMaker = () => {
   const clearVillage = () => {
     setPlacedItems([]);
     setCurrentYear(startingYear);
+    setTimeOfDay(12);
+    setViewingHouse(null);
     toast.info("Village cleared!");
+  };
+  
+  const handleHouseClick = (houseId: string) => {
+    if (!exploreMode) return;
+    setViewingHouse(houseId);
+    toast.info("Viewing house interior. Click outside to exit.");
+  };
+  
+  const handleInteriorDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggedItem || !viewingHouse) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const item = INTERIOR_ITEMS.find(i => i.type === draggedItem);
+    if (!item) return;
+
+    const newInteriorItem: HouseInteriorItem = {
+      id: `${draggedItem}-${Date.now()}`,
+      type: draggedItem,
+      x,
+      y,
+      icon: item.icon,
+    };
+
+    setPlacedItems(prev => prev.map(house => {
+      if (house.id === viewingHouse) {
+        const interior = house.interior || [];
+        return { ...house, interior: [...interior, newInteriorItem] };
+      }
+      return house;
+    }));
+
+    setDraggedItem(null);
+    toast.success(`${item.label} added to house!`);
   };
 
   const saveVillage = async () => {
@@ -511,7 +701,10 @@ export const VillageMaker = () => {
       if (uploadError) throw uploadError;
 
       // Save to database
-      const villageDataToSave = placedItems.map(({ icon, ...item }) => item);
+      const villageDataToSave = placedItems.map(({ icon, interior, ...item }) => ({
+        ...item,
+        interior: interior?.map(({ icon: interiorIcon, ...interiorItem }) => interiorItem) || []
+      })) as any;
       const { error: dbError } = await supabase
         .from("villages")
         .insert([{
@@ -522,7 +715,7 @@ export const VillageMaker = () => {
             items: villageDataToSave,
             startingYear: startingYear,
             currentYear: currentYear,
-          },
+          } as any,
         }]);
 
       if (dbError) throw dbError;
@@ -595,14 +788,19 @@ export const VillageMaker = () => {
               max="9999"
             />
             <div className="flex-1 text-sm text-muted-foreground">
-              Current Year in Village: <span className="font-bold text-foreground">{currentYear}</span>
+              Year: <span className="font-bold text-foreground">{currentYear}</span>
+              {" • "}
+              Time: <span className="font-bold text-foreground">
+                {timeOfDay >= 20 || timeOfDay < 6 ? <Moon className="w-4 h-4 inline text-blue-400" /> : <Sun className="w-4 h-4 inline text-yellow-400" />}
+                {" "}{timeOfDay}:00
+              </span>
             </div>
           </div>
         </div>
 
         <div className="flex-1 flex gap-4 overflow-hidden">
-          {/* Toolbox - Hidden in explore mode */}
-          {!exploreMode && (
+          {/* Toolbox */}
+          {!exploreMode && !viewingHouse && (
           <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
             <p className="text-sm font-semibold mb-3">Drag items to canvas:</p>
             {ITEMS.map((item) => (
@@ -626,8 +824,87 @@ export const VillageMaker = () => {
             </Button>
           </div>
           )}
+          
+          {/* Interior Decoration Toolbox */}
+          {viewingHouse && (
+          <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
+            <p className="text-sm font-semibold mb-3">Decorate house:</p>
+            {INTERIOR_ITEMS.map((item) => (
+              <div
+                key={item.type}
+                draggable
+                onDragStart={() => handleDragStart(item.type)}
+                className="flex items-center gap-2 p-3 bg-card rounded-lg cursor-move hover:bg-accent transition-colors border-2 border-border"
+              >
+                <item.icon className={`w-6 h-6 ${item.color}`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewingHouse(null)}
+              className="w-full mt-4"
+            >
+              Exit House
+            </Button>
+          </div>
+          )}
 
-          {/* Canvas */}
+          {/* Canvas or House Interior */}
+          {viewingHouse ? (
+            <div
+              onDrop={handleInteriorDrop}
+              onDragOver={handleDragOver}
+              className="flex-1 relative bg-amber-100 dark:bg-amber-950 rounded-lg border-2 border-dashed border-primary/30 overflow-hidden"
+              style={{ minHeight: "400px" }}
+              onClick={() => setViewingHouse(null)}
+            >
+              <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm z-10">
+                <Home className="w-4 h-4 inline mr-2" />
+                House Interior - Drag decorations from left
+              </div>
+              
+              {/* Interior items */}
+              {placedItems.find(h => h.id === viewingHouse)?.interior?.map((item) => {
+                const ItemIcon = item.icon;
+                const itemConfig = INTERIOR_ITEMS.find(i => i.type === item.type);
+                
+                return (
+                  <div
+                    key={item.id}
+                    className="absolute cursor-pointer hover:scale-110 transition-transform"
+                    style={{ left: item.x - 16, top: item.y - 16 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlacedItems(prev => prev.map(house => {
+                        if (house.id === viewingHouse) {
+                          return {
+                            ...house,
+                            interior: house.interior?.filter(i => i.id !== item.id) || []
+                          };
+                        }
+                        return house;
+                      }));
+                      toast.info("Item removed");
+                    }}
+                  >
+                    <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
+                  </div>
+                );
+              })}
+              
+              {(!placedItems.find(h => h.id === viewingHouse)?.interior || 
+                placedItems.find(h => h.id === viewingHouse)?.interior?.length === 0) && (
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                  <p className="text-center">
+                    Drag decorations from the left to furnish!<br />
+                    <span className="text-sm">Click items to remove them</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
           <div
             ref={canvasRef}
             onDrop={handleDrop}
@@ -661,8 +938,11 @@ export const VillageMaker = () => {
             )}
 
             {placedItems.map((item) => {
-              const ItemIcon = item.icon;
+              // Don't render people who are inside houses
               const itemConfig = ITEMS.find(i => i.type === item.type);
+              if (item.currentHouse) return null;
+              
+              const ItemIcon = item.icon;
               const scale = item.size ?? 1;
               const iconSize = 32 * scale;
               const offset = iconSize / 2;
@@ -670,14 +950,19 @@ export const VillageMaker = () => {
               return (
                 <div
                   key={item.id}
-                  className={`absolute transition-all duration-1000 ease-in-out ${!exploreMode ? 'cursor-pointer hover:scale-110' : ''}`}
+                  className={`absolute transition-all duration-1000 ease-in-out ${
+                    exploreMode && item.type === 'house' ? 'cursor-pointer hover:scale-110 hover:ring-4 hover:ring-yellow-400' : 
+                    !exploreMode ? 'cursor-pointer hover:scale-110' : ''
+                  }`}
                   style={{ 
                     left: item.x - offset, 
                     top: item.y - offset,
                     transform: `scale(${scale})`
                   }}
                   onClick={() => {
-                    if (!exploreMode) {
+                    if (exploreMode && item.type === 'house') {
+                      handleHouseClick(item.id);
+                    } else if (!exploreMode) {
                       setPlacedItems(placedItems.filter(i => i.id !== item.id));
                       toast.info("Item removed");
                     }
@@ -702,6 +987,14 @@ export const VillageMaker = () => {
                   {item.type === "lake" && (
                     <div className="absolute inset-0 bg-blue-400/30 rounded-full -z-10 scale-[3]" />
                   )}
+                  {item.type === "park" && (
+                    <div className="absolute inset-0 bg-green-400/20 rounded-lg -z-10 scale-[4]" />
+                  )}
+                  {item.type === "house" && item.interior && item.interior.length > 0 && (
+                    <div className="absolute -top-2 -right-2 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                      {item.interior.length}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -715,6 +1008,7 @@ export const VillageMaker = () => {
               </div>
             )}
           </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
