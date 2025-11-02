@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
@@ -27,6 +27,7 @@ interface VillageItem {
   toys?: number; // toys inventory
   interior?: VillageItem[]; // items inside this house
   currentHouse?: string; // id of house the person is in
+  name?: string; // name for living items
 }
 
 interface HouseInteriorItem {
@@ -86,6 +87,25 @@ const SPEECH_OPTIONS = [
   "Let it Snow! ❄️",
 ];
 
+const PERSON_NAMES = [
+  "Emma", "Liam", "Olivia", "Noah", "Ava", "Ethan", "Sophia", "Mason",
+  "Isabella", "William", "Mia", "James", "Charlotte", "Benjamin", "Amelia",
+  "Lucas", "Harper", "Henry", "Evelyn", "Alexander", "Abigail", "Michael",
+  "Emily", "Daniel", "Elizabeth", "Matthew", "Sofia", "David", "Avery"
+];
+
+const ANIMAL_NAMES = [
+  "Max", "Bella", "Charlie", "Luna", "Buddy", "Daisy", "Rocky", "Lucy",
+  "Cooper", "Sadie", "Duke", "Molly", "Bear", "Lola", "Tucker", "Bailey",
+  "Jack", "Maggie", "Oliver", "Sophie", "Zeus", "Chloe", "Bentley", "Penny"
+];
+
+const generateName = (type: string): string => {
+  const isAnimal = ["dog", "puppy", "cat", "kitten", "bird", "chick", "rabbit", "bunny", "squirrel", "kit"].includes(type);
+  const names = isAnimal ? ANIMAL_NAMES : PERSON_NAMES;
+  return names[Math.floor(Math.random() * names.length)];
+};
+
 export const VillageMaker = () => {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -101,6 +121,8 @@ export const VillageMaker = () => {
   const [playerPos, setPlayerPos] = useState({ x: 400, y: 300 });
   const [viewingHouse, setViewingHouse] = useState<string | null>(null);
   const [timeOfDay, setTimeOfDay] = useState(12); // 0-24 hours, 12 = noon
+  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -640,6 +662,7 @@ export const VillageMaker = () => {
       newItem.food = 50; // Start with 50 food
       newItem.water = 0;
       newItem.toys = 0;
+      newItem.name = generateName(draggedItem);
     }
 
     setPlacedItems([...placedItems, newItem]);
@@ -853,6 +876,93 @@ export const VillageMaker = () => {
             >
               Clear Village
             </Button>
+          </div>
+          )}
+          
+          {/* People List Panel */}
+          {!viewingHouse && placedItems.some(item => ITEMS.find(i => i.type === item.type)?.isLiving) && (
+          <div className="w-64 space-y-2 overflow-y-auto p-3 bg-muted rounded-lg max-h-[500px]">
+            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              People & Animals ({placedItems.filter(item => ITEMS.find(i => i.type === item.type)?.isLiving).length})
+            </p>
+            {placedItems
+              .filter(item => ITEMS.find(i => i.type === item.type)?.isLiving)
+              .map((person) => {
+                const personConfig = ITEMS.find(i => i.type === person.type);
+                const PersonIcon = person.icon;
+                const house = placedItems.find(h => h.id === person.currentHouse);
+                const houseIndex = house ? placedItems.filter(i => i.type === "house").findIndex(h => h.id === house.id) + 1 : null;
+                
+                return (
+                  <div
+                    key={person.id}
+                    className="p-2 bg-card rounded-lg border border-border space-y-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <PersonIcon className={`w-5 h-5 ${personConfig?.color}`} />
+                      {editingPersonId === person.id ? (
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onBlur={() => {
+                            if (editingName.trim()) {
+                              setPlacedItems(prev => prev.map(p => 
+                                p.id === person.id ? { ...p, name: editingName.trim() } : p
+                              ));
+                            }
+                            setEditingPersonId(null);
+                            setEditingName("");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              if (editingName.trim()) {
+                                setPlacedItems(prev => prev.map(p => 
+                                  p.id === person.id ? { ...p, name: editingName.trim() } : p
+                                ));
+                              }
+                              setEditingPersonId(null);
+                              setEditingName("");
+                            }
+                          }}
+                          className="h-6 text-sm flex-1"
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium flex-1">{person.name || "Unnamed"}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              setEditingPersonId(person.id);
+                              setEditingName(person.name || "");
+                            }}
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <div className="flex items-center gap-1">
+                        <Home className="w-3 h-3" />
+                        {house ? `House #${houseIndex}` : "Outside"}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        ({Math.round(person.x)}, {Math.round(person.y)})
+                      </div>
+                      <div className="flex gap-2 text-[10px]">
+                        {person.hunger !== undefined && `🍖${Math.round(person.hunger)}`}
+                        {person.thirst !== undefined && ` 💧${Math.round(person.thirst)}`}
+                        {person.toys !== undefined && person.toys > 0 && ` 🎮${person.toys}`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
           </div>
           )}
           
