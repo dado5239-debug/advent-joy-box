@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin, Tv, Frame, Refrigerator, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
+import { PhoneModal } from "./PhoneModal";
 
 interface VillageItem {
   id: string;
@@ -72,6 +73,10 @@ const INTERIOR_ITEMS = [
   { type: "tree-decor", icon: Trees, label: "Xmas Tree", color: "text-green-500" },
   { type: "star-decor", icon: Star, label: "Star Decor", color: "text-yellow-400" },
   { type: "gift-decor", icon: Gift, label: "Gift Decor", color: "text-pink-400" },
+  { type: "fridge", icon: Refrigerator, label: "Fridge", color: "text-slate-400" },
+  { type: "tv", icon: Tv, label: "TV", color: "text-gray-700" },
+  { type: "painting", icon: Frame, label: "Painting", color: "text-amber-500" },
+  { type: "phone", icon: Smartphone, label: "Mobile Phone", color: "text-blue-500" },
 ];
 
 const SPEECH_OPTIONS = [
@@ -123,6 +128,7 @@ export const VillageMaker = () => {
   const [timeOfDay, setTimeOfDay] = useState(12); // 0-24 hours, 12 = noon
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -1021,16 +1027,20 @@ export const VillageMaker = () => {
                     style={{ left: item.x - 16, top: item.y - 16 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setPlacedItems(prev => prev.map(house => {
-                        if (house.id === viewingHouse) {
-                          return {
-                            ...house,
-                            interior: house.interior?.filter(i => i.id !== item.id) || []
-                          };
-                        }
-                        return house;
-                      }));
-                      toast.info("Item removed");
+                      if (item.type === "phone") {
+                        setPhoneOpen(true);
+                      } else {
+                        setPlacedItems(prev => prev.map(house => {
+                          if (house.id === viewingHouse) {
+                            return {
+                              ...house,
+                              interior: house.interior?.filter(i => i.id !== item.id) || []
+                            };
+                          }
+                          return house;
+                        }));
+                        toast.info("Item removed");
+                      }
                     }}
                   >
                     <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
@@ -1189,6 +1199,7 @@ export const VillageMaker = () => {
           )}
         </div>
       </DialogContent>
+      <PhoneModal isOpen={phoneOpen} onClose={() => setPhoneOpen(false)} />
     </Dialog>
   );
 };
