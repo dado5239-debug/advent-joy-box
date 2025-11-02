@@ -30,7 +30,12 @@ interface VillageItem {
   currentHouse?: string; // id of house the person is in
   currentSchool?: string; // id of school the person is in
   name?: string; // name for living items
-  lifeYears?: number; // years lived (for death at 93)
+  lifeYears?: number; // years lived
+  gender?: 'male' | 'female'; // gender
+  emotion?: 'happy' | 'sad' | 'neutral' | 'excited' | 'tired'; // current emotion
+  familyId?: string; // family identifier
+  isMarried?: boolean; // married status
+  ageStage?: 'baby' | 'kid' | 'teenager' | 'adult'; // current age stage
 }
 
 interface HouseInteriorItem {
@@ -54,9 +59,14 @@ const ITEMS = [
   { type: "water-item", icon: Droplet, label: "Water", color: "text-blue-400", isLiving: false, isWater: true },
   { type: "toy", icon: Gamepad2, label: "Toy", color: "text-purple-400", isLiving: false, isToy: true },
   { type: "park", icon: TentTree, label: "Park", color: "text-green-500", isLiving: false, isPark: true },
+  { type: "teacher", icon: User, label: "Teacher", color: "text-purple-700", isLiving: true, babyType: "baby" },
+  { type: "man", icon: User, label: "Man", color: "text-blue-600", isLiving: true, babyType: "baby" },
+  { type: "woman", icon: User, label: "Woman", color: "text-pink-600", isLiving: true, babyType: "baby" },
+  { type: "kid", icon: User, label: "Kid", color: "text-cyan-500", isLiving: true, growsInto: "teenager" },
+  { type: "teenager", icon: User, label: "Teenager", color: "text-indigo-500", isLiving: true, growsInto: "person" },
   { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true, babyType: "baby" },
   { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true, babyType: "baby" },
-  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "person" },
+  { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "kid" },
   { type: "dog", icon: Dog, label: "Dog", color: "text-amber-600", isLiving: true, babyType: "puppy" },
   { type: "puppy", icon: Dog, label: "Puppy", color: "text-amber-400", isLiving: true, growsInto: "dog" },
   { type: "cat", icon: Cat, label: "Cat", color: "text-orange-500", isLiving: true, babyType: "kitten" },
@@ -120,6 +130,21 @@ const generateName = (type: string): string => {
   const isAnimal = ["dog", "puppy", "cat", "kitten", "bird", "chick", "rabbit", "bunny", "squirrel", "kit"].includes(type);
   const names = isAnimal ? ANIMAL_NAMES : PERSON_NAMES;
   return names[Math.floor(Math.random() * names.length)];
+};
+
+const getEmotionEmoji = (emotion?: string): string => {
+  switch(emotion) {
+    case 'happy': return '😊';
+    case 'sad': return '😢';
+    case 'excited': return '😃';
+    case 'tired': return '😴';
+    default: return '😐';
+  }
+};
+
+const randomEmotion = (): 'happy' | 'sad' | 'neutral' | 'excited' | 'tired' => {
+  const emotions: ('happy' | 'sad' | 'neutral' | 'excited' | 'tired')[] = ['happy', 'sad', 'neutral', 'excited', 'tired'];
+  return emotions[Math.floor(Math.random() * emotions.length)];
 };
 
 export const VillageMaker = () => {
@@ -238,6 +263,12 @@ export const VillageMaker = () => {
           let newWater = currentWater;
           let newToys = currentToys;
           let newLifeYears = currentLifeYears + 1;
+          let newEmotion = item.emotion || randomEmotion();
+          
+          // Randomly change emotion
+          if (Math.random() < 0.1) {
+            newEmotion = randomEmotion();
+          }
 
           // Die if starving or dehydrated
           if (newHunger <= 0 || newThirst <= 0) {
@@ -245,10 +276,16 @@ export const VillageMaker = () => {
             return null; // Mark for removal
           }
 
-          // Die at 93 years old and drop 30 food
-          if ((item.type === "person" || item.type === "family") && newLifeYears >= 93) {
+          // Dogs die at 87 years
+          if ((item.type === "dog" || item.type === "puppy") && newLifeYears >= 87) {
+            toast.error(`${item.name || 'A dog'} died of old age at 87! 🐕💀`);
+            return null;
+          }
+
+          // People die at 93 years old and drop 30 food
+          if ((item.type === "person" || item.type === "man" || item.type === "woman" || item.type === "teenager" || item.type === "kid") && newLifeYears >= 93) {
             toast.error(`${item.name || 'Someone'} died of old age at 93! 💀`);
-            // Drop 30 food at death location
+            // Drop 30 food at death location (3 items x 10 food each)
             for (let i = 0; i < 3; i++) {
               const foodDrop: VillageItem = {
                 id: `food-drop-${Date.now()}-${Math.random()}`,
@@ -262,8 +299,23 @@ export const VillageMaker = () => {
             return null; // Mark for removal
           }
 
-          // School time behavior - kids go to school
-          if (isSchoolTime && (item.type === "person" || item.type === "baby") && !item.currentSchool) {
+          // Age stage transitions: kid at 13 -> teenager
+          if (item.type === "kid" && newLifeYears >= 13) {
+            return {
+              ...item,
+              type: "teenager",
+              ageStage: "teenager",
+              lifeYears: newLifeYears,
+              hunger: newHunger,
+              thirst: newThirst,
+              emotion: newEmotion,
+              speech: "🎉 I'm a teenager now!",
+              showSpeech: true,
+            };
+          }
+
+          // School time behavior - kids, teenagers, and teachers go to school
+          if (isSchoolTime && (item.type === "kid" || item.type === "teenager" || item.type === "teacher") && !item.currentSchool) {
             const nearbySchool = schools.find(school => {
               const distance = Math.sqrt(Math.pow(school.x - item.x, 2) + Math.pow(school.y - item.y, 2));
               return distance < 60;
@@ -273,11 +325,12 @@ export const VillageMaker = () => {
               return {
                 ...item,
                 currentSchool: nearbySchool.id,
-                speech: "📚 Going to school...",
+                speech: item.type === "teacher" ? "👩‍🏫 Time to teach!" : "📚 Going to school...",
                 showSpeech: true,
                 hunger: newHunger,
                 thirst: newThirst,
                 lifeYears: newLifeYears,
+                emotion: newEmotion,
               };
             } else {
               const nearestSchool = schools.reduce((nearest, school) => {
@@ -302,6 +355,7 @@ export const VillageMaker = () => {
                   hunger: newHunger,
                   thirst: newThirst,
                   lifeYears: newLifeYears,
+                  emotion: newEmotion,
                 };
               }
             }
@@ -321,19 +375,24 @@ export const VillageMaker = () => {
                 hunger: newHunger,
                 thirst: newThirst,
                 lifeYears: newLifeYears,
+                emotion: newEmotion,
               };
             }
           }
           
           // If in school during school time, learn math
           if (item.currentSchool && isSchoolTime) {
+            const speech = item.type === "teacher" 
+              ? (Math.random() < 0.1 ? "👩‍🏫 Teaching math!" : undefined)
+              : (Math.random() < 0.1 ? "🧮 Learning math!" : undefined);
             return {
               ...item,
               hunger: newHunger,
               thirst: newThirst,
-              speech: Math.random() < 0.1 ? "🧮 Learning math!" : undefined,
-              showSpeech: Math.random() < 0.1,
+              speech,
+              showSpeech: !!speech,
               lifeYears: newLifeYears,
+              emotion: newEmotion,
             };
           }
 
@@ -354,6 +413,7 @@ export const VillageMaker = () => {
                 hunger: newHunger,
                 thirst: newThirst,
                 lifeYears: newLifeYears,
+                emotion: newEmotion,
               };
             } else {
               // Move towards nearest house
@@ -379,6 +439,7 @@ export const VillageMaker = () => {
                   hunger: newHunger,
                   thirst: newThirst,
                   lifeYears: newLifeYears,
+                  emotion: newEmotion,
                 };
               }
             }
@@ -395,6 +456,7 @@ export const VillageMaker = () => {
                 speech: "🎮 Playing with toys!",
                 showSpeech: Math.random() < 0.1,
                 lifeYears: newLifeYears,
+                emotion: newEmotion,
               };
             }
             
@@ -412,6 +474,7 @@ export const VillageMaker = () => {
                   hunger: newHunger,
                   thirst: newThirst,
                   lifeYears: newLifeYears,
+                  emotion: newEmotion,
                 };
               }
             }
@@ -433,6 +496,7 @@ export const VillageMaker = () => {
                 hunger: newHunger,
                 thirst: newThirst,
                 lifeYears: newLifeYears,
+                emotion: newEmotion,
               };
             }
           }
@@ -689,6 +753,7 @@ export const VillageMaker = () => {
             thirst: newThirst,
             toys: newToys,
             lifeYears: newLifeYears,
+            emotion: newEmotion,
           };
         }).filter(item => item !== null) as VillageItem[];
 
@@ -725,12 +790,63 @@ export const VillageMaker = () => {
                     size: 0.5,
                     speech: "👶",
                     showSpeech: true,
+                    name: generateName(babyType),
+                    lifeYears: 1,
+                    ageStage: "baby",
+                    emotion: randomEmotion(),
+                    familyId: item1.familyId || item2.familyId,
                   };
                   
                   newItems.push(baby);
                   toast.success(`A ${babyConfig.label.toLowerCase()} was born! 👶`);
                 }
               }
+            }
+          }
+        }
+
+        // Marriage logic: man + woman = family
+        const men = newItems.filter(item => item.type === "man" && !item.isMarried && !item.familyId);
+        const women = newItems.filter(item => item.type === "woman" && !item.isMarried && !item.familyId);
+        
+        for (let i = 0; i < men.length; i++) {
+          for (let j = 0; j < women.length; j++) {
+            const man = men[i];
+            const woman = women[j];
+            
+            const distance = Math.sqrt(
+              Math.pow(man.x - woman.x, 2) + Math.pow(man.y - woman.y, 2)
+            );
+            
+            // If close enough, 5% chance to marry
+            if (distance < 50 && Math.random() < 0.05) {
+              const familyId = `family-${Date.now()}-${Math.random()}`;
+              
+              // Update both to be married with same family ID
+              const manIndex = newItems.findIndex(item => item.id === man.id);
+              const womanIndex = newItems.findIndex(item => item.id === woman.id);
+              
+              if (manIndex !== -1) {
+                newItems[manIndex] = {
+                  ...newItems[manIndex],
+                  isMarried: true,
+                  familyId,
+                  speech: "💍 We're married!",
+                  showSpeech: true,
+                };
+              }
+              
+              if (womanIndex !== -1) {
+                newItems[womanIndex] = {
+                  ...newItems[womanIndex],
+                  isMarried: true,
+                  familyId,
+                  speech: "💍 We're married!",
+                  showSpeech: true,
+                };
+              }
+              
+              toast.success(`${man.name} and ${woman.name} got married! 💑`);
             }
           }
         }
@@ -791,7 +907,33 @@ export const VillageMaker = () => {
       newItem.water = 0;
       newItem.toys = 0;
       newItem.name = generateName(draggedItem);
-      newItem.lifeYears = 0;
+      newItem.emotion = randomEmotion();
+      
+      // Set starting age and age stage based on type
+      if (draggedItem === "baby") {
+        newItem.lifeYears = 1;
+        newItem.ageStage = "baby";
+      } else if (draggedItem === "kid") {
+        newItem.lifeYears = 7;
+        newItem.ageStage = "kid";
+      } else if (draggedItem === "teenager") {
+        newItem.lifeYears = 13;
+        newItem.ageStage = "teenager";
+      } else if (draggedItem === "man" || draggedItem === "woman" || draggedItem === "person" || draggedItem === "teacher") {
+        newItem.lifeYears = 20;
+        newItem.ageStage = "adult";
+      } else {
+        newItem.lifeYears = 0;
+      }
+      
+      // Set gender
+      if (draggedItem === "man") {
+        newItem.gender = "male";
+      } else if (draggedItem === "woman") {
+        newItem.gender = "female";
+      } else if (draggedItem === "person" || draggedItem === "kid" || draggedItem === "teenager" || draggedItem === "teacher") {
+        newItem.gender = Math.random() < 0.5 ? "male" : "female";
+      }
     }
 
     setPlacedItems([...placedItems, newItem]);
@@ -1101,9 +1243,29 @@ export const VillageMaker = () => {
                         <MapPin className="w-3 h-3" />
                         ({Math.round(person.x)}, {Math.round(person.y)})
                       </div>
-                      {(person.type === "person" || person.type === "family") && person.lifeYears !== undefined && (
+                      {person.lifeYears !== undefined && (
                         <div className="text-xs font-bold text-blue-600">
-                          Age: {person.lifeYears} years
+                          Age: {person.lifeYears} years {person.ageStage && `(${person.ageStage})`}
+                        </div>
+                      )}
+                      {person.gender && (
+                        <div className="text-xs">
+                          {person.gender === 'male' ? '♂️ Male' : '♀️ Female'}
+                        </div>
+                      )}
+                      {person.emotion && (
+                        <div className="text-xs">
+                          {getEmotionEmoji(person.emotion)} {person.emotion}
+                        </div>
+                      )}
+                      {person.familyId && (
+                        <div className="text-xs text-purple-600">
+                          👨‍👩‍👧 Family: {person.familyId.slice(-6)}
+                        </div>
+                      )}
+                      {person.isMarried && (
+                        <div className="text-xs text-pink-600">
+                          💍 Married
                         </div>
                       )}
                       <div className="flex gap-2 text-[10px]">
@@ -1240,9 +1402,9 @@ export const VillageMaker = () => {
                       </div>
                     )}
                     <PersonIcon className={`w-8 h-8 ${personConfig?.color}`} />
-                    {(person.type === "person" || person.type === "family") && person.lifeYears !== undefined && (
-                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
-                        {person.lifeYears}y
+                    {person.lifeYears !== undefined && (
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold whitespace-nowrap">
+                        {person.lifeYears}y {person.emotion && getEmotionEmoji(person.emotion)}
                       </div>
                     )}
                     {personConfig?.isLiving && (
@@ -1308,12 +1470,11 @@ export const VillageMaker = () => {
                 );
               })}
               
-              {/* Students inside school */}
+              {/* Students and teachers inside school */}
               {placedItems.filter(p => p.currentSchool === viewingSchool).map((person) => {
                 const PersonIcon = person.icon;
                 const personConfig = ITEMS.find(i => i.type === person.type);
                 const scale = person.size ?? 1;
-                const iconSize = 32 * scale;
                 
                 return (
                   <div
@@ -1331,9 +1492,14 @@ export const VillageMaker = () => {
                       </div>
                     )}
                     <PersonIcon className={`w-8 h-8 ${personConfig?.color}`} />
-                    {(person.type === "person" || person.type === "baby") && person.lifeYears !== undefined && (
+                    {person.lifeYears !== undefined && (
                       <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
-                        {person.lifeYears}y
+                        {person.lifeYears}y {person.emotion && getEmotionEmoji(person.emotion)}
+                      </div>
+                    )}
+                    {person.type === "teacher" && (
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[10px] bg-purple-600 text-white px-2 rounded font-bold">
+                        👩‍🏫 Teacher
                       </div>
                     )}
                     {personConfig?.isLiving && (
@@ -1461,9 +1627,10 @@ export const VillageMaker = () => {
                       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-slate-800 rotate-45 border-r-2 border-b-2 border-primary/20"></div>
                     </div>
                   )}
-                  {(item.type === "person" || item.type === "family") && item.lifeYears !== undefined && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
-                      {item.lifeYears}y
+                  {itemConfig?.isLiving && item.lifeYears !== undefined && (
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold whitespace-nowrap">
+                      {item.lifeYears}y {item.emotion && getEmotionEmoji(item.emotion)}
+                      {item.familyId && ' 👨‍👩‍👧'}
                     </div>
                   )}
                   {itemConfig?.isLiving && (item.hunger !== undefined || item.wood !== undefined) && (
