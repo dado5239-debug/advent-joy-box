@@ -65,6 +65,8 @@ export const VillageMaker = () => {
   const [title, setTitle] = useState("My Christmas Village");
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [startingYear, setStartingYear] = useState(new Date().getFullYear());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -84,6 +86,9 @@ export const VillageMaker = () => {
   // Animation loop for living items
   useEffect(() => {
     const interval = setInterval(() => {
+      // Increment year every cycle (2 seconds = 1 year in village time)
+      setCurrentYear(prev => prev + 1);
+      
       setPlacedItems(prev => {
         let newItems = [...prev];
         
@@ -244,6 +249,7 @@ export const VillageMaker = () => {
 
   const clearVillage = () => {
     setPlacedItems([]);
+    setCurrentYear(startingYear);
     toast.info("Village cleared!");
   };
 
@@ -289,7 +295,11 @@ export const VillageMaker = () => {
           storage_path: fileName,
           title: title,
           user_id: user.id,
-          village_data: villageDataToSave,
+          village_data: {
+            items: villageDataToSave,
+            startingYear: startingYear,
+            currentYear: currentYear,
+          },
         }]);
 
       if (dbError) throw dbError;
@@ -298,6 +308,9 @@ export const VillageMaker = () => {
       setIsOpen(false);
       setPlacedItems([]);
       setTitle("My Christmas Village");
+      const newYear = new Date().getFullYear();
+      setStartingYear(newYear);
+      setCurrentYear(newYear);
     } catch (error) {
       console.error("Error saving village:", error);
       toast.error("Failed to save village");
@@ -319,21 +332,41 @@ export const VillageMaker = () => {
           <DialogTitle className="text-2xl">Christmas Village Maker</DialogTitle>
         </DialogHeader>
 
-        <div className="flex gap-2 items-center mb-2">
-          <Input
-            placeholder="Village title..."
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            onClick={saveVillage}
-            disabled={isSaving || placedItems.length === 0}
-            className="gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? "Saving..." : "Save Village"}
-          </Button>
+        <div className="space-y-2 mb-2">
+          <div className="flex gap-2 items-center">
+            <Input
+              placeholder="Village title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              onClick={saveVillage}
+              disabled={isSaving || placedItems.length === 0}
+              className="gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? "Saving..." : "Save Village"}
+            </Button>
+          </div>
+          <div className="flex gap-2 items-center">
+            <Input
+              type="number"
+              placeholder="Starting year..."
+              value={startingYear}
+              onChange={(e) => {
+                const year = parseInt(e.target.value) || new Date().getFullYear();
+                setStartingYear(year);
+                setCurrentYear(year);
+              }}
+              className="w-40"
+              min="1000"
+              max="9999"
+            />
+            <div className="flex-1 text-sm text-muted-foreground">
+              Current Year in Village: <span className="font-bold text-foreground">{currentYear}</span>
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 flex gap-4 overflow-hidden">
