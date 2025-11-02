@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin, Tv, Frame, Refrigerator, Smartphone, School, BookOpen, Pencil, Calculator, Map } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin, Tv, Frame, Refrigerator, Smartphone, School, BookOpen, Pencil, Calculator, Map, Shield, Flame, Cross, Video, Building } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
@@ -36,6 +36,9 @@ interface VillageItem {
   familyId?: string; // family identifier
   isMarried?: boolean; // married status
   ageStage?: 'baby' | 'kid' | 'teenager' | 'adult'; // current age stage
+  job?: 'police' | 'firefighter' | 'teacher' | 'bishop' | 'youtuber' | 'robber'; // job type
+  isInJail?: boolean; // if person is in jail
+  jailTime?: number; // time left in jail
 }
 
 interface HouseInteriorItem {
@@ -61,6 +64,12 @@ const ITEMS = [
   { type: "water-item", icon: Droplet, label: "Water", color: "text-blue-400", isLiving: false, isWater: true },
   { type: "toy", icon: Gamepad2, label: "Toy", color: "text-purple-400", isLiving: false, isToy: true },
   { type: "park", icon: TentTree, label: "Park", color: "text-green-500", isLiving: false, isPark: true },
+  { type: "jail", icon: Building, label: "Jail", color: "text-gray-600", isLiving: false },
+  { type: "police", icon: Shield, label: "Police", color: "text-blue-800", isLiving: true, babyType: "baby" },
+  { type: "firefighter", icon: Flame, label: "Firefighter", color: "text-red-700", isLiving: true, babyType: "baby" },
+  { type: "bishop", icon: Cross, label: "Bishop", color: "text-purple-800", isLiving: true, babyType: "baby" },
+  { type: "youtuber", icon: Video, label: "YouTuber", color: "text-red-600", isLiving: true, babyType: "baby" },
+  { type: "robber", icon: User, label: "Robber", color: "text-gray-800", isLiving: true, babyType: "baby" },
   { type: "teacher", icon: User, label: "Teacher", color: "text-purple-700", isLiving: true, babyType: "baby" },
   { type: "man", icon: User, label: "Man", color: "text-blue-600", isLiving: true, babyType: "baby" },
   { type: "woman", icon: User, label: "Woman", color: "text-pink-600", isLiving: true, babyType: "baby" },
@@ -316,6 +325,198 @@ export const VillageMaker = () => {
               speech: "🎉 I'm a teenager now!",
               showSpeech: true,
             };
+          }
+
+          // Job assignment at age 30 for people without jobs
+          if (newLifeYears >= 30 && !item.job && (item.type === "person" || item.type === "man" || item.type === "woman" || item.type === "teenager")) {
+            const robberCount = newItems.filter(i => i.job === "robber" || i.type === "robber").length;
+            const availableJobs: Array<'police' | 'firefighter' | 'teacher' | 'bishop' | 'youtuber' | 'robber'> = 
+              ['police', 'firefighter', 'teacher', 'bishop', 'youtuber'];
+            
+            // Only add robber as option if there are no robbers
+            if (robberCount === 0) {
+              availableJobs.push('robber');
+            }
+            
+            const assignedJob = availableJobs[Math.floor(Math.random() * availableJobs.length)];
+            
+            // Change type to match job
+            const newType = assignedJob;
+            const jobConfig = ITEMS.find(i => i.type === newType);
+            
+            return {
+              ...item,
+              type: newType,
+              icon: jobConfig?.icon || item.icon,
+              job: assignedJob,
+              lifeYears: newLifeYears,
+              hunger: newHunger,
+              thirst: newThirst,
+              emotion: 'excited',
+              speech: `👔 I'm a ${assignedJob} now!`,
+              showSpeech: true,
+            };
+          }
+
+          // Jail time logic - reduce jail time and release if done
+          if (item.isInJail && item.jailTime !== undefined) {
+            const newJailTime = item.jailTime - 1;
+            if (newJailTime <= 0) {
+              const jails = newItems.filter(i => i.type === "jail");
+              const jail = jails[0];
+              return {
+                ...item,
+                isInJail: false,
+                jailTime: undefined,
+                x: jail ? jail.x + 50 : item.x,
+                y: jail ? jail.y + 50 : item.y,
+                speech: "🔓 I'm free!",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+                emotion: 'happy',
+              };
+            }
+            return {
+              ...item,
+              jailTime: newJailTime,
+              hunger: newHunger,
+              thirst: newThirst,
+              lifeYears: newLifeYears,
+            };
+          }
+
+          // Police behavior - catch robbers
+          if ((item.type === "police" || item.job === "police") && !item.currentHouse && !item.currentSchool) {
+            const nearbyRobber = livingItems.find(other => {
+              if ((other.type !== "robber" && other.job !== "robber") || other.isInJail) return false;
+              const distance = Math.sqrt(Math.pow(other.x - item.x, 2) + Math.pow(other.y - item.y, 2));
+              return distance < 40;
+            });
+
+            if (nearbyRobber) {
+              const robberIndex = newItems.findIndex(i => i.id === nearbyRobber.id);
+              const jails = newItems.filter(i => i.type === "jail");
+              const jail = jails[0];
+              
+              if (robberIndex !== -1 && jail) {
+                newItems[robberIndex] = {
+                  ...newItems[robberIndex],
+                  isInJail: true,
+                  jailTime: 20, // 20 cycles in jail
+                  x: jail.x,
+                  y: jail.y,
+                  speech: "🚔 Caught!",
+                  showSpeech: true,
+                };
+                
+                toast.success(`${item.name || 'Police'} caught a robber!`);
+                
+                return {
+                  ...item,
+                  speech: "👮 Caught the robber!",
+                  showSpeech: true,
+                  hunger: newHunger,
+                  thirst: newThirst,
+                  lifeYears: newLifeYears,
+                  emotion: 'happy',
+                };
+              }
+            }
+          }
+
+          // Firefighter behavior - stop house fires
+          if ((item.type === "firefighter" || item.job === "firefighter") && !item.currentHouse && !item.currentSchool) {
+            const burningHouse = houses.find(house => {
+              const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
+              return distance < 50 && Math.random() < 0.05; // Random house fires
+            });
+
+            if (burningHouse && Math.random() < 0.3) {
+              toast.success(`${item.name || 'Firefighter'} put out a fire!`);
+              return {
+                ...item,
+                speech: "🔥 Fire's out!",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+                emotion: 'excited',
+              };
+            }
+          }
+
+          // Bishop behavior - work in church
+          if ((item.type === "bishop" || item.job === "bishop") && !item.currentHouse && !item.currentSchool) {
+            const churches = newItems.filter(i => i.type === "church");
+            const nearbyChurch = churches.find(church => {
+              const distance = Math.sqrt(Math.pow(church.x - item.x, 2) + Math.pow(church.y - item.y, 2));
+              return distance < 60;
+            });
+
+            if (nearbyChurch && Math.random() < 0.2) {
+              return {
+                ...item,
+                x: nearbyChurch.x + (Math.random() - 0.5) * 30,
+                y: nearbyChurch.y + (Math.random() - 0.5) * 30,
+                speech: "🙏 Praying...",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+                emotion: 'happy',
+              };
+            }
+          }
+
+          // YouTuber behavior - film on phone
+          if ((item.type === "youtuber" || item.job === "youtuber") && !item.currentHouse && !item.currentSchool && Math.random() < 0.15) {
+            return {
+              ...item,
+              speech: "📱 Filming content!",
+              showSpeech: true,
+              hunger: newHunger,
+              thirst: newThirst,
+              lifeYears: newLifeYears,
+              emotion: 'excited',
+            };
+          }
+
+          // Robber behavior - steal things
+          if ((item.type === "robber" || item.job === "robber") && !item.isInJail && !item.currentHouse && !item.currentSchool && Math.random() < 0.1) {
+            return {
+              ...item,
+              speech: "💰 Stealing!",
+              showSpeech: true,
+              hunger: newHunger,
+              thirst: newThirst,
+              lifeYears: newLifeYears,
+              emotion: 'neutral',
+            };
+          }
+
+          // People can go to church to pray
+          if (!isNight && !item.currentHouse && !item.currentSchool && Math.random() < 0.05) {
+            const churches = newItems.filter(i => i.type === "church");
+            const nearbyChurch = churches.find(church => {
+              const distance = Math.sqrt(Math.pow(church.x - item.x, 2) + Math.pow(church.y - item.y, 2));
+              return distance < 60;
+            });
+
+            if (nearbyChurch) {
+              return {
+                ...item,
+                x: nearbyChurch.x + (Math.random() - 0.5) * 30,
+                y: nearbyChurch.y + (Math.random() - 0.5) * 30,
+                speech: "⛪ Praying...",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+                emotion: 'happy',
+              };
+            }
           }
 
           // School time behavior - kids, teenagers (under 18), and teachers go to school
@@ -981,6 +1182,13 @@ export const VillageMaker = () => {
         setDraggedItem(null);
         return;
       }
+    }
+
+    // Prevent spawning robbers directly
+    if (draggedItem === "robber") {
+      toast.error("Robbers can't be spawned! People become robbers at age 30.");
+      setDraggedItem(null);
+      return;
     }
 
     const newItem: VillageItem = {
