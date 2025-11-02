@@ -15,6 +15,8 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
   const [isXTurn, setIsXTurn] = useState(true);
   const [winner, setWinner] = useState<string | null>(null);
   const [isVIP, setIsVIP] = useState(false); // VIP status
+  const [isSinging, setIsSinging] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
   // Bot makes a move after player
   useEffect(() => {
@@ -115,6 +117,55 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
     setWinner(null);
   };
 
+  const videos = [
+    { id: 1, title: "Jingle Bells", icon: "🔔" },
+    { id: 2, title: "Silent Night", icon: "🌙" },
+    { id: 3, title: "Deck the Halls", icon: "🎄" },
+  ];
+
+  const handleVideoClick = async (video: typeof videos[0]) => {
+    if (!isVIP || isSinging) return;
+    
+    setIsSinging(true);
+    setSelectedVideo(video.title);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/advero-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: `Write a short, festive Christmas song for "${video.title}". Keep it under 100 words with verses and chorus.`,
+          type: 'song'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.text && 'speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(data.text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1.1;
+        utterance.volume = 1.0;
+        utterance.onend = () => {
+          setIsSinging(false);
+          setSelectedVideo(null);
+        };
+        utterance.onerror = () => {
+          setIsSinging(false);
+          setSelectedVideo(null);
+          toast.error("Failed to sing the song");
+        };
+        window.speechSynthesis.speak(utterance);
+        toast.success(`🎤 Singing ${video.title}...`);
+      }
+    } catch (error) {
+      console.error('Error singing song:', error);
+      toast.error("Failed to generate song");
+      setIsSinging(false);
+      setSelectedVideo(null);
+    }
+  };
+
   const renderHome = () => (
     <div className="grid grid-cols-2 gap-4 p-4">
       <Button
@@ -182,39 +233,31 @@ export const PhoneModal = ({ isOpen, onClose }: PhoneModalProps) => {
           ← Back
         </Button>
         <div className="space-y-2">
-          <div className="bg-muted p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-12 bg-red-500 rounded flex items-center justify-center">
-                <Video className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Christmas Carol 🎄</p>
-                <p className="text-xs text-muted-foreground">2:45</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-muted p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-12 bg-green-500 rounded flex items-center justify-center">
-                <Video className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Winter Wonderland ⛄</p>
-                <p className="text-xs text-muted-foreground">3:12</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-muted p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-12 bg-blue-500 rounded flex items-center justify-center">
-                <Video className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Jingle Bells 🔔</p>
-                <p className="text-xs text-muted-foreground">1:58</p>
+          {videos.map((video) => (
+            <div
+              key={video.id}
+              className={`bg-muted p-3 rounded-lg cursor-pointer transition-colors ${
+                isSinging && selectedVideo === video.title
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent'
+              }`}
+              onClick={() => handleVideoClick(video)}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-16 h-12 rounded flex items-center justify-center text-2xl ${
+                  isSinging && selectedVideo === video.title ? 'animate-pulse' : ''
+                }`}>
+                  {isSinging && selectedVideo === video.title ? '🎤' : video.icon}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{video.title}</p>
+                  <p className="text-xs opacity-70">
+                    {isSinging && selectedVideo === video.title ? 'Singing...' : 'Tap to play'}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     );
