@@ -318,8 +318,8 @@ export const VillageMaker = () => {
             };
           }
 
-          // School time behavior - kids, teenagers, and teachers go to school
-          if (isSchoolTime && (item.type === "kid" || item.type === "teenager" || item.type === "teacher") && !item.currentSchool) {
+          // School time behavior - kids, teenagers (under 18), and teachers go to school
+          if (isSchoolTime && (item.type === "kid" || (item.type === "teenager" && newLifeYears < 18) || item.type === "teacher") && !item.currentSchool) {
             const nearbySchool = schools.find(school => {
               const distance = Math.sqrt(Math.pow(school.x - item.x, 2) + Math.pow(school.y - item.y, 2));
               return distance < 60;
@@ -365,8 +365,8 @@ export const VillageMaker = () => {
             }
           }
           
-          // Leave school after school time
-          if (!isSchoolTime && item.currentSchool) {
+          // Leave school after school time OR when turning 18
+          if (((!isSchoolTime || newLifeYears >= 18) && item.currentSchool) || (item.type === "teenager" && newLifeYears >= 18 && item.currentSchool)) {
             const school = schools.find(s => s.id === item.currentSchool);
             if (school) {
               return {
@@ -374,7 +374,7 @@ export const VillageMaker = () => {
                 currentSchool: undefined,
                 x: school.x + (Math.random() - 0.5) * 50,
                 y: school.y + (Math.random() - 0.5) * 50,
-                speech: "🎒 School's out!",
+                speech: newLifeYears >= 18 ? "🎓 I'm done with school!" : "🎒 School's out!",
                 showSpeech: true,
                 hunger: newHunger,
                 thirst: newThirst,
