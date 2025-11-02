@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
@@ -34,6 +34,8 @@ const ITEMS = [
   { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300", isLiving: false },
   { type: "star", icon: Star, label: "Star", color: "text-yellow-400", isLiving: false },
   { type: "lake", icon: Snowflake, label: "Lake", color: "text-blue-500", isLiving: false, isWaterSource: true },
+  { type: "food-item", icon: Apple, label: "Food", color: "text-red-400", isLiving: false, isFood: true },
+  { type: "water-item", icon: Droplet, label: "Water", color: "text-blue-400", isLiving: false, isWater: true },
   { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true, babyType: "baby" },
   { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true, babyType: "baby" },
   { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "person" },
@@ -100,6 +102,8 @@ export const VillageMaker = () => {
         const livingItems = newItems.filter(item => ITEMS.find(i => i.type === item.type)?.isLiving);
         const trees = newItems.filter(item => item.type === "tree");
         const lakes = newItems.filter(item => item.type === "lake");
+        const foodItems = newItems.filter(item => item.type === "food-item");
+        const waterItems = newItems.filter(item => item.type === "water-item");
         
         // Update existing items
         newItems = newItems.map(item => {
@@ -170,6 +174,37 @@ export const VillageMaker = () => {
           if (nearestLake && newThirst < 80) {
             newWater += 20;
             newThirst = Math.min(100, newThirst + 20);
+          }
+
+          // Pick up food items
+          const nearbyFood = foodItems.find(food => {
+            const distance = Math.sqrt(Math.pow(food.x - item.x, 2) + Math.pow(food.y - item.y, 2));
+            return distance < 40;
+          });
+
+          if (nearbyFood) {
+            const foodIndex = newItems.findIndex(i => i.id === nearbyFood.id);
+            if (foodIndex !== -1) {
+              newItems.splice(foodIndex, 1);
+              newFood += 30;
+              toast.success("🍎 Picked up food!");
+            }
+          }
+
+          // Pick up water items
+          const nearbyWater = waterItems.find(water => {
+            const distance = Math.sqrt(Math.pow(water.x - item.x, 2) + Math.pow(water.y - item.y, 2));
+            return distance < 40;
+          });
+
+          if (nearbyWater) {
+            const waterIndex = newItems.findIndex(i => i.id === nearbyWater.id);
+            if (waterIndex !== -1) {
+              newItems.splice(waterIndex, 1);
+              newWater += 30;
+              newThirst = Math.min(100, newThirst + 30);
+              toast.success("💧 Picked up water!");
+            }
           }
 
           // Try to find food from trees
