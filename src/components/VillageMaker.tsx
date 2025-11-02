@@ -29,6 +29,7 @@ interface VillageItem {
   interior?: VillageItem[]; // items inside this house/school
   currentHouse?: string; // id of house the person is in
   currentSchool?: string; // id of school the person is in
+  currentChurch?: string; // id of church the person is in
   name?: string; // name for living items
   lifeYears?: number; // years lived
   gender?: 'male' | 'female'; // gender
@@ -448,19 +449,18 @@ export const VillageMaker = () => {
           }
 
           // Bishop behavior - work in church
-          if ((item.type === "bishop" || item.job === "bishop") && !item.currentHouse && !item.currentSchool) {
+          if ((item.type === "bishop" || item.job === "bishop") && !item.currentHouse && !item.currentSchool && !item.currentChurch) {
             const churches = newItems.filter(i => i.type === "church");
             const nearbyChurch = churches.find(church => {
               const distance = Math.sqrt(Math.pow(church.x - item.x, 2) + Math.pow(church.y - item.y, 2));
               return distance < 60;
             });
 
-            if (nearbyChurch && Math.random() < 0.2) {
+            if (nearbyChurch && Math.random() < 0.3) {
               return {
                 ...item,
-                x: nearbyChurch.x + (Math.random() - 0.5) * 30,
-                y: nearbyChurch.y + (Math.random() - 0.5) * 30,
-                speech: "🙏 Praying...",
+                currentChurch: nearbyChurch.id,
+                speech: "⛪ Working at church...",
                 showSpeech: true,
                 hunger: newHunger,
                 thirst: newThirst,
@@ -497,7 +497,7 @@ export const VillageMaker = () => {
           }
 
           // People can go to church to pray
-          if (!isNight && !item.currentHouse && !item.currentSchool && Math.random() < 0.05) {
+          if (!isNight && !item.currentHouse && !item.currentSchool && !item.currentChurch && Math.random() < 0.08) {
             const churches = newItems.filter(i => i.type === "church");
             const nearbyChurch = churches.find(church => {
               const distance = Math.sqrt(Math.pow(church.x - item.x, 2) + Math.pow(church.y - item.y, 2));
@@ -507,9 +507,8 @@ export const VillageMaker = () => {
             if (nearbyChurch) {
               return {
                 ...item,
-                x: nearbyChurch.x + (Math.random() - 0.5) * 30,
-                y: nearbyChurch.y + (Math.random() - 0.5) * 30,
-                speech: "⛪ Praying...",
+                currentChurch: nearbyChurch.id,
+                speech: "⛪ Going to church...",
                 showSpeech: true,
                 hunger: newHunger,
                 thirst: newThirst,
@@ -517,6 +516,38 @@ export const VillageMaker = () => {
                 emotion: 'happy',
               };
             }
+          }
+          
+          // Leave church after praying
+          if (item.currentChurch && Math.random() < 0.2) {
+            const church = newItems.find(c => c.id === item.currentChurch && c.type === "church");
+            if (church) {
+              return {
+                ...item,
+                currentChurch: undefined,
+                x: church.x + (Math.random() - 0.5) * 50,
+                y: church.y + (Math.random() - 0.5) * 50,
+                speech: "🙏 Amen!",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+                emotion: 'happy',
+              };
+            }
+          }
+          
+          // If in church, pray
+          if (item.currentChurch) {
+            return {
+              ...item,
+              hunger: newHunger,
+              thirst: newThirst,
+              speech: Math.random() < 0.1 ? "🙏 Praying..." : undefined,
+              showSpeech: Math.random() < 0.1,
+              lifeYears: newLifeYears,
+              emotion: 'happy',
+            };
           }
 
           // School time behavior - kids, teenagers (under 18), and teachers go to school
