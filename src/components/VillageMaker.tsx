@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin, Tv, Frame, Refrigerator, Smartphone } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin, Tv, Frame, Refrigerator, Smartphone, School, BookOpen, Pencil, Calculator, Map } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
@@ -26,9 +26,11 @@ interface VillageItem {
   hunger?: number; // 100 = full, 0 = starving
   thirst?: number; // 100 = hydrated, 0 = dehydrated
   toys?: number; // toys inventory
-  interior?: VillageItem[]; // items inside this house
+  interior?: VillageItem[]; // items inside this house/school
   currentHouse?: string; // id of house the person is in
+  currentSchool?: string; // id of school the person is in
   name?: string; // name for living items
+  lifeYears?: number; // years lived (for death at 93)
 }
 
 interface HouseInteriorItem {
@@ -41,6 +43,7 @@ interface HouseInteriorItem {
 
 const ITEMS = [
   { type: "house", icon: Home, label: "House", color: "text-red-500", isLiving: false },
+  { type: "school", icon: School, label: "School", color: "text-indigo-600", isLiving: false },
   { type: "tree", icon: Trees, label: "Tree", color: "text-green-600", isLiving: false, canBeChopped: true },
   { type: "church", icon: Church, label: "Church", color: "text-amber-700", isLiving: false },
   { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false, canBeOpened: true },
@@ -77,6 +80,14 @@ const INTERIOR_ITEMS = [
   { type: "tv", icon: Tv, label: "TV", color: "text-gray-700" },
   { type: "painting", icon: Frame, label: "Painting", color: "text-amber-500" },
   { type: "phone", icon: Smartphone, label: "Mobile Phone", color: "text-blue-500" },
+];
+
+const SCHOOL_ITEMS = [
+  { type: "desk", icon: Armchair, label: "Desk", color: "text-brown-600" },
+  { type: "blackboard", icon: BookOpen, label: "Blackboard", color: "text-slate-700" },
+  { type: "book", icon: BookOpen, label: "Book", color: "text-blue-600" },
+  { type: "pencil", icon: Pencil, label: "Pencil", color: "text-yellow-600" },
+  { type: "calculator", icon: Calculator, label: "Calculator", color: "text-gray-600" },
 ];
 
 const SPEECH_OPTIONS = [
@@ -125,10 +136,12 @@ export const VillageMaker = () => {
   const [exploreMode, setExploreMode] = useState(false);
   const [playerPos, setPlayerPos] = useState({ x: 400, y: 300 });
   const [viewingHouse, setViewingHouse] = useState<string | null>(null);
+  const [viewingSchool, setViewingSchool] = useState<string | null>(null);
   const [timeOfDay, setTimeOfDay] = useState(12); // 0-24 hours, 12 = noon
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -197,9 +210,11 @@ export const VillageMaker = () => {
         const presents = newItems.filter(item => item.type === "gift");
         const toyItems = newItems.filter(item => item.type === "toy");
         const houses = newItems.filter(item => item.type === "house");
+        const schools = newItems.filter(item => item.type === "school");
         const parks = newItems.filter(item => item.type === "park");
         
         const isNight = timeOfDay >= 20 || timeOfDay < 6;
+        const isSchoolTime = timeOfDay >= 8 && timeOfDay < 15 && !isNight;
         
         // Update existing items
         newItems = newItems.map(item => {
@@ -213,6 +228,7 @@ export const VillageMaker = () => {
           const currentFood = item.food ?? 0;
           const currentWater = item.water ?? 0;
           const currentToys = item.toys ?? 0;
+          const currentLifeYears = item.lifeYears ?? 0;
 
           // Decrease hunger and thirst over time
           let newHunger = Math.max(0, currentHunger - 1);
@@ -221,15 +237,108 @@ export const VillageMaker = () => {
           let newFood = currentFood;
           let newWater = currentWater;
           let newToys = currentToys;
+          let newLifeYears = currentLifeYears + 1;
 
           // Die if starving or dehydrated
           if (newHunger <= 0 || newThirst <= 0) {
-            toast.error(`A ${itemConfig.label.toLowerCase()} died from ${newHunger <= 0 ? 'starvation' : 'dehydration'}! 💀`);
+            toast.error(`${item.name || 'Someone'} died from ${newHunger <= 0 ? 'starvation' : 'dehydration'}! 💀`);
             return null; // Mark for removal
           }
 
+          // Die at 93 years old and drop 30 food
+          if ((item.type === "person" || item.type === "family") && newLifeYears >= 93) {
+            toast.error(`${item.name || 'Someone'} died of old age at 93! 💀`);
+            // Drop 30 food at death location
+            for (let i = 0; i < 3; i++) {
+              const foodDrop: VillageItem = {
+                id: `food-drop-${Date.now()}-${Math.random()}`,
+                type: "food-item",
+                x: item.x + (Math.random() - 0.5) * 40,
+                y: item.y + (Math.random() - 0.5) * 40,
+                icon: Apple,
+              };
+              newItems.push(foodDrop);
+            }
+            return null; // Mark for removal
+          }
+
+          // School time behavior - kids go to school
+          if (isSchoolTime && (item.type === "person" || item.type === "baby") && !item.currentSchool) {
+            const nearbySchool = schools.find(school => {
+              const distance = Math.sqrt(Math.pow(school.x - item.x, 2) + Math.pow(school.y - item.y, 2));
+              return distance < 60;
+            });
+            
+            if (nearbySchool) {
+              return {
+                ...item,
+                currentSchool: nearbySchool.id,
+                speech: "📚 Going to school...",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+              };
+            } else {
+              const nearestSchool = schools.reduce((nearest, school) => {
+                const distance = Math.sqrt(Math.pow(school.x - item.x, 2) + Math.pow(school.y - item.y, 2));
+                const nearestDistance = nearest ? Math.sqrt(Math.pow(nearest.x - item.x, 2) + Math.pow(nearest.y - item.y, 2)) : Infinity;
+                return distance < nearestDistance ? school : nearest;
+              }, null as VillageItem | null);
+              
+              if (nearestSchool) {
+                const dx = nearestSchool.x - item.x;
+                const dy = nearestSchool.y - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const moveX = (dx / distance) * 15;
+                const moveY = (dy / distance) * 15;
+                
+                return {
+                  ...item,
+                  x: Math.max(50, Math.min(item.x + moveX, 750)),
+                  y: Math.max(50, Math.min(item.y + moveY, 550)),
+                  speech: "📖 Time for school...",
+                  showSpeech: Math.random() < 0.2,
+                  hunger: newHunger,
+                  thirst: newThirst,
+                  lifeYears: newLifeYears,
+                };
+              }
+            }
+          }
+          
+          // Leave school after school time
+          if (!isSchoolTime && item.currentSchool) {
+            const school = schools.find(s => s.id === item.currentSchool);
+            if (school) {
+              return {
+                ...item,
+                currentSchool: undefined,
+                x: school.x + (Math.random() - 0.5) * 50,
+                y: school.y + (Math.random() - 0.5) * 50,
+                speech: "🎒 School's out!",
+                showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
+              };
+            }
+          }
+          
+          // If in school during school time, learn math
+          if (item.currentSchool && isSchoolTime) {
+            return {
+              ...item,
+              hunger: newHunger,
+              thirst: newThirst,
+              speech: Math.random() < 0.1 ? "🧮 Learning math!" : undefined,
+              showSpeech: Math.random() < 0.1,
+              lifeYears: newLifeYears,
+            };
+          }
+
           // Night time behavior - seek house to sleep
-          if (isNight && !item.currentHouse) {
+          if (isNight && !item.currentHouse && !item.currentSchool) {
             const nearbyHouse = houses.find(house => {
               const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
               return distance < 60;
@@ -242,6 +351,9 @@ export const VillageMaker = () => {
                 currentHouse: nearbyHouse.id,
                 speech: "😴 Going to sleep...",
                 showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
               };
             } else {
               // Move towards nearest house
@@ -264,6 +376,9 @@ export const VillageMaker = () => {
                   y: Math.max(50, Math.min(item.y + moveY, 550)),
                   speech: "🌙 Time for bed...",
                   showSpeech: Math.random() < 0.2,
+                  hunger: newHunger,
+                  thirst: newThirst,
+                  lifeYears: newLifeYears,
                 };
               }
             }
@@ -279,6 +394,7 @@ export const VillageMaker = () => {
                 thirst: newThirst,
                 speech: "🎮 Playing with toys!",
                 showSpeech: Math.random() < 0.1,
+                lifeYears: newLifeYears,
               };
             }
             
@@ -293,13 +409,16 @@ export const VillageMaker = () => {
                   y: house.y + (Math.random() - 0.5) * 50,
                   speech: "☀️ Going outside!",
                   showSpeech: true,
+                  hunger: newHunger,
+                  thirst: newThirst,
+                  lifeYears: newLifeYears,
                 };
               }
             }
           }
           
           // During day, people can randomly enter houses
-          if (!isNight && !item.currentHouse && Math.random() < 0.05) {
+          if (!isNight && !item.currentHouse && !item.currentSchool && !isSchoolTime && Math.random() < 0.05) {
             const nearbyHouse = houses.find(house => {
               const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
               return distance < 60;
@@ -311,6 +430,9 @@ export const VillageMaker = () => {
                 currentHouse: nearbyHouse.id,
                 speech: "🏠 Going inside...",
                 showSpeech: true,
+                hunger: newHunger,
+                thirst: newThirst,
+                lifeYears: newLifeYears,
               };
             }
           }
@@ -321,6 +443,7 @@ export const VillageMaker = () => {
               ...item,
               hunger: newHunger,
               thirst: newThirst,
+              lifeYears: newLifeYears,
             };
           }
 
@@ -348,6 +471,7 @@ export const VillageMaker = () => {
                 food: newFood,
                 water: newWater,
                 toys: newToys,
+                lifeYears: newLifeYears,
               };
             }
           }
@@ -564,6 +688,7 @@ export const VillageMaker = () => {
             hunger: newHunger,
             thirst: newThirst,
             toys: newToys,
+            lifeYears: newLifeYears,
           };
         }).filter(item => item !== null) as VillageItem[];
 
@@ -658,8 +783,8 @@ export const VillageMaker = () => {
       size: 1,
     };
     
-    // Initialize house with empty interior
-    if (draggedItem === "house") {
+    // Initialize house/school with empty interior
+    if (draggedItem === "house" || draggedItem === "school") {
       newItem.interior = [];
     }
 
@@ -672,6 +797,7 @@ export const VillageMaker = () => {
       newItem.water = 0;
       newItem.toys = 0;
       newItem.name = generateName(draggedItem);
+      newItem.lifeYears = 0;
     }
 
     setPlacedItems([...placedItems, newItem]);
@@ -689,6 +815,7 @@ export const VillageMaker = () => {
     setCurrentYear(startingYear);
     setTimeOfDay(12);
     setViewingHouse(null);
+    setViewingSchool(null);
     toast.info("Village cleared!");
   };
   
@@ -698,15 +825,23 @@ export const VillageMaker = () => {
     toast.info("Viewing house interior. Click outside to exit.");
   };
   
+  const handleSchoolClick = (schoolId: string) => {
+    if (!exploreMode) return;
+    setViewingSchool(schoolId);
+    toast.info("Viewing school interior. Watch students learn!");
+  };
+  
   const handleInteriorDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggedItem || !viewingHouse) return;
+    const buildingId = viewingHouse || viewingSchool;
+    if (!draggedItem || !buildingId) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const item = INTERIOR_ITEMS.find(i => i.type === draggedItem);
+    const itemList = viewingSchool ? SCHOOL_ITEMS : INTERIOR_ITEMS;
+    const item = itemList.find(i => i.type === draggedItem);
     if (!item) return;
 
     const newInteriorItem: HouseInteriorItem = {
@@ -717,16 +852,16 @@ export const VillageMaker = () => {
       icon: item.icon,
     };
 
-    setPlacedItems(prev => prev.map(house => {
-      if (house.id === viewingHouse) {
-        const interior = house.interior || [];
-        return { ...house, interior: [...interior, newInteriorItem] };
+    setPlacedItems(prev => prev.map(building => {
+      if (building.id === buildingId) {
+        const interior = building.interior || [];
+        return { ...building, interior: [...interior, newInteriorItem] };
       }
-      return house;
+      return building;
     }));
 
     setDraggedItem(null);
-    toast.success(`${item.label} added to house!`);
+    toast.success(`${item.label} added to ${viewingSchool ? 'school' : 'house'}!`);
   };
 
   const saveVillage = async () => {
@@ -835,6 +970,15 @@ export const VillageMaker = () => {
               <Save className="w-4 h-4" />
               {isSaving ? "Saving..." : "Save Village"}
             </Button>
+            <Button
+              onClick={() => setShowMinimap(!showMinimap)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <Map className="w-4 h-4" />
+              {showMinimap ? "Hide" : "Show"} Map
+            </Button>
           </div>
           <div className="flex gap-2 items-center">
             <Input
@@ -863,7 +1007,7 @@ export const VillageMaker = () => {
 
         <div className="flex-1 flex gap-4 overflow-hidden">
           {/* Toolbox */}
-          {!exploreMode && !viewingHouse && (
+          {!exploreMode && !viewingHouse && !viewingSchool && (
           <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
             <p className="text-sm font-semibold mb-3">Drag items to canvas:</p>
             {ITEMS.map((item) => (
@@ -889,7 +1033,7 @@ export const VillageMaker = () => {
           )}
           
           {/* People List Panel */}
-          {!viewingHouse && placedItems.some(item => ITEMS.find(i => i.type === item.type)?.isLiving) && (
+          {!viewingHouse && !viewingSchool && placedItems.some(item => ITEMS.find(i => i.type === item.type)?.isLiving) && (
           <div className="w-64 space-y-2 overflow-y-auto p-3 bg-muted rounded-lg max-h-[500px]">
             <p className="text-sm font-semibold mb-3 flex items-center gap-2">
               <Users className="w-4 h-4" />
@@ -963,6 +1107,11 @@ export const VillageMaker = () => {
                         <MapPin className="w-3 h-3" />
                         ({Math.round(person.x)}, {Math.round(person.y)})
                       </div>
+                      {(person.type === "person" || person.type === "family") && person.lifeYears !== undefined && (
+                        <div className="text-xs font-bold text-blue-600">
+                          Age: {person.lifeYears} years
+                        </div>
+                      )}
                       <div className="flex gap-2 text-[10px]">
                         {person.hunger !== undefined && `🍖${Math.round(person.hunger)}`}
                         {person.thirst !== undefined && ` 💧${Math.round(person.thirst)}`}
@@ -1000,8 +1149,34 @@ export const VillageMaker = () => {
             </Button>
           </div>
           )}
+          
+          {/* School Interior Toolbox */}
+          {viewingSchool && (
+          <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
+            <p className="text-sm font-semibold mb-3">Furnish school:</p>
+            {SCHOOL_ITEMS.map((item) => (
+              <div
+                key={item.type}
+                draggable
+                onDragStart={() => handleDragStart(item.type)}
+                className="flex items-center gap-2 p-3 bg-card rounded-lg cursor-move hover:bg-accent transition-colors border-2 border-border"
+              >
+                <item.icon className={`w-6 h-6 ${item.color}`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewingSchool(null)}
+              className="w-full mt-4"
+            >
+              Exit School
+            </Button>
+          </div>
+          )}
 
-          {/* Canvas or House Interior */}
+          {/* Canvas or Building Interior */}
           {viewingHouse ? (
             <div
               onDrop={handleInteriorDrop}
@@ -1071,6 +1246,11 @@ export const VillageMaker = () => {
                       </div>
                     )}
                     <PersonIcon className={`w-8 h-8 ${personConfig?.color}`} />
+                    {(person.type === "person" || person.type === "family") && person.lifeYears !== undefined && (
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
+                        {person.lifeYears}y
+                      </div>
+                    )}
                     {personConfig?.isLiving && (
                       <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[8px] whitespace-nowrap bg-black/70 text-white px-1 rounded">
                         {person.hunger !== undefined && `🍖${Math.round(person.hunger)}`}
@@ -1092,6 +1272,96 @@ export const VillageMaker = () => {
                 </div>
               )}
             </div>
+          ) : viewingSchool ? (
+            <div
+              onDrop={handleInteriorDrop}
+              onDragOver={handleDragOver}
+              className="flex-1 relative bg-slate-200 dark:bg-slate-800 rounded-lg border-2 border-dashed border-primary/30 overflow-hidden"
+              style={{ minHeight: "400px" }}
+              onClick={() => setViewingSchool(null)}
+            >
+              <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm z-10">
+                <School className="w-4 h-4 inline mr-2" />
+                School Interior - Students learning math
+              </div>
+              
+              {/* School interior items */}
+              {placedItems.find(s => s.id === viewingSchool)?.interior?.map((item) => {
+                const ItemIcon = item.icon;
+                const itemConfig = SCHOOL_ITEMS.find(i => i.type === item.type);
+                
+                return (
+                  <div
+                    key={item.id}
+                    className="absolute cursor-pointer hover:scale-110 transition-transform"
+                    style={{ left: item.x - 16, top: item.y - 16 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlacedItems(prev => prev.map(school => {
+                        if (school.id === viewingSchool) {
+                          return {
+                            ...school,
+                            interior: school.interior?.filter(i => i.id !== item.id) || []
+                          };
+                        }
+                        return school;
+                      }));
+                      toast.info("Item removed");
+                    }}
+                  >
+                    <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
+                  </div>
+                );
+              })}
+              
+              {/* Students inside school */}
+              {placedItems.filter(p => p.currentSchool === viewingSchool).map((person) => {
+                const PersonIcon = person.icon;
+                const personConfig = ITEMS.find(i => i.type === person.type);
+                const scale = person.size ?? 1;
+                const iconSize = 32 * scale;
+                
+                return (
+                  <div
+                    key={person.id}
+                    className="absolute transition-all duration-1000"
+                    style={{ 
+                      left: 200 + Math.random() * 200,
+                      top: 150 + Math.random() * 150,
+                      transform: `scale(${scale})`
+                    }}
+                  >
+                    {person.showSpeech && person.speech && (
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-3 py-1 rounded-full text-xs whitespace-nowrap shadow-lg border-2 border-primary/20 animate-fade-in">
+                        {person.speech}
+                      </div>
+                    )}
+                    <PersonIcon className={`w-8 h-8 ${personConfig?.color}`} />
+                    {(person.type === "person" || person.type === "baby") && person.lifeYears !== undefined && (
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
+                        {person.lifeYears}y
+                      </div>
+                    )}
+                    {personConfig?.isLiving && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[8px] whitespace-nowrap bg-black/70 text-white px-1 rounded">
+                        {person.hunger !== undefined && `🍖${Math.round(person.hunger)}`}
+                        {person.thirst !== undefined && ` 💧${Math.round(person.thirst)}`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              
+              {(!placedItems.find(s => s.id === viewingSchool)?.interior || 
+                placedItems.find(s => s.id === viewingSchool)?.interior?.length === 0) && (
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                  <p className="text-center">
+                    Drag school items from the left!<br />
+                    <span className="text-sm">Watch students learn math 🧮</span>
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
           <div
             ref={canvasRef}
@@ -1104,6 +1374,39 @@ export const VillageMaker = () => {
             {exploreMode && (
               <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm z-10">
                 Use <span className="font-bold">WASD</span> to move around the village
+              </div>
+            )}
+            
+            {/* Minimap */}
+            {showMinimap && (
+              <div className="absolute top-2 right-2 w-48 h-36 bg-black/70 rounded-lg border-2 border-white/30 overflow-hidden z-10">
+                <div className="absolute top-1 left-1 text-white text-[10px] font-bold">MAP</div>
+                <div className="relative w-full h-full scale-[0.2] origin-top-left">
+                  {placedItems.map((item) => {
+                    const itemConfig = ITEMS.find(i => i.type === item.type);
+                    if (item.currentHouse || item.currentSchool) return null;
+                    
+                    let color = "bg-gray-400";
+                    if (item.type === "house") color = "bg-red-500";
+                    if (item.type === "school") color = "bg-indigo-500";
+                    if (item.type === "tree") color = "bg-green-500";
+                    if (itemConfig?.isLiving) color = "bg-yellow-400";
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className={`absolute w-8 h-8 rounded-full ${color}`}
+                        style={{ left: item.x, top: item.y }}
+                      />
+                    );
+                  })}
+                  {exploreMode && (
+                    <div
+                      className="absolute w-8 h-8 rounded-full bg-blue-400 border-2 border-white animate-pulse"
+                      style={{ left: playerPos.x, top: playerPos.y }}
+                    />
+                  )}
+                </div>
               </div>
             )}
             {/* Snow ground */}
@@ -1139,7 +1442,7 @@ export const VillageMaker = () => {
                 <div
                   key={item.id}
                   className={`absolute transition-all duration-1000 ease-in-out ${
-                    exploreMode && item.type === 'house' ? 'cursor-pointer hover:scale-110 hover:ring-4 hover:ring-yellow-400' : 
+                    exploreMode && (item.type === 'house' || item.type === 'school') ? 'cursor-pointer hover:scale-110 hover:ring-4 hover:ring-yellow-400' : 
                     !exploreMode ? 'cursor-pointer hover:scale-110' : ''
                   }`}
                   style={{ 
@@ -1150,6 +1453,8 @@ export const VillageMaker = () => {
                   onClick={() => {
                     if (exploreMode && item.type === 'house') {
                       handleHouseClick(item.id);
+                    } else if (exploreMode && item.type === 'school') {
+                      handleSchoolClick(item.id);
                     } else if (!exploreMode) {
                       setPlacedItems(placedItems.filter(i => i.id !== item.id));
                       toast.info("Item removed");
@@ -1160,6 +1465,11 @@ export const VillageMaker = () => {
                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-3 py-1 rounded-full text-xs whitespace-nowrap shadow-lg border-2 border-primary/20 animate-fade-in">
                       {item.speech}
                       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-slate-800 rotate-45 border-r-2 border-b-2 border-primary/20"></div>
+                    </div>
+                  )}
+                  {(item.type === "person" || item.type === "family") && item.lifeYears !== undefined && (
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
+                      {item.lifeYears}y
                     </div>
                   )}
                   {itemConfig?.isLiving && (item.hunger !== undefined || item.wood !== undefined) && (
@@ -1178,7 +1488,7 @@ export const VillageMaker = () => {
                   {item.type === "park" && (
                     <div className="absolute inset-0 bg-green-400/20 rounded-lg -z-10 scale-[4]" />
                   )}
-                  {item.type === "house" && item.interior && item.interior.length > 0 && (
+                  {(item.type === "house" || item.type === "school") && item.interior && item.interior.length > 0 && (
                     <div className="absolute -top-2 -right-2 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                       {item.interior.length}
                     </div>
