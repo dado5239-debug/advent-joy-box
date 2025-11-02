@@ -293,9 +293,9 @@ export const VillageMaker = () => {
             newEmotion = randomEmotion();
           }
 
-          // Die if starving or dehydrated
-          if (newHunger <= 0 || newThirst <= 0) {
-            toast.error(`${item.name || 'Someone'} died from ${newHunger <= 0 ? 'starvation' : 'dehydration'}! 💀`);
+          // Die if starving
+          if (newHunger <= 0) {
+            toast.error(`${item.name || 'Someone'} died from starvation! 💀`);
             return null; // Mark for removal
           }
 
