@@ -19,15 +19,21 @@ interface VillageItem {
   showSpeech?: boolean;
   age?: number; // 0 = baby, 100 = adult
   size?: number; // 0.5 = baby, 1 = adult
+  wood?: number; // wood inventory
+  food?: number; // food inventory
+  water?: number; // water inventory
+  hunger?: number; // 100 = full, 0 = starving
+  thirst?: number; // 100 = hydrated, 0 = dehydrated
 }
 
 const ITEMS = [
   { type: "house", icon: Home, label: "House", color: "text-red-500", isLiving: false },
-  { type: "tree", icon: Trees, label: "Tree", color: "text-green-600", isLiving: false },
+  { type: "tree", icon: Trees, label: "Tree", color: "text-green-600", isLiving: false, canBeChopped: true },
   { type: "church", icon: Church, label: "Church", color: "text-amber-700", isLiving: false },
   { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false },
   { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300", isLiving: false },
   { type: "star", icon: Star, label: "Star", color: "text-yellow-400", isLiving: false },
+  { type: "lake", icon: Snowflake, label: "Lake", color: "text-blue-500", isLiving: false, isWaterSource: true },
   { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true, babyType: "baby" },
   { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true, babyType: "baby" },
   { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "person" },
@@ -91,15 +97,98 @@ export const VillageMaker = () => {
       
       setPlacedItems(prev => {
         let newItems = [...prev];
+        const livingItems = newItems.filter(item => ITEMS.find(i => i.type === item.type)?.isLiving);
+        const trees = newItems.filter(item => item.type === "tree");
+        const lakes = newItems.filter(item => item.type === "lake");
         
         // Update existing items
         newItems = newItems.map(item => {
           const itemConfig = ITEMS.find(i => i.type === item.type);
           if (!itemConfig?.isLiving) return item;
 
+          // Initialize resources if not present
+          const currentHunger = item.hunger ?? 100;
+          const currentThirst = item.thirst ?? 100;
+          const currentWood = item.wood ?? 0;
+          const currentFood = item.food ?? 0;
+          const currentWater = item.water ?? 0;
+
+          // Decrease hunger and thirst over time
+          let newHunger = Math.max(0, currentHunger - 1);
+          let newThirst = Math.max(0, currentThirst - 2);
+          let newWood = currentWood;
+          let newFood = currentFood;
+          let newWater = currentWater;
+
+          // Die if starving or dehydrated
+          if (newHunger <= 0 || newThirst <= 0) {
+            toast.error(`A ${itemConfig.label.toLowerCase()} died from ${newHunger <= 0 ? 'starvation' : 'dehydration'}! 💀`);
+            return null; // Mark for removal
+          }
+
           // Random movement (walking)
-          const moveX = (Math.random() - 0.5) * 20;
-          const moveY = (Math.random() - 0.5) * 20;
+          let moveX = (Math.random() - 0.5) * 20;
+          let moveY = (Math.random() - 0.5) * 20;
+
+          // Find nearest tree to chop
+          if (item.type === "person" || item.type === "family") {
+            const nearestTree = trees.find(tree => {
+              const distance = Math.sqrt(Math.pow(tree.x - item.x, 2) + Math.pow(tree.y - item.y, 2));
+              return distance < 40;
+            });
+
+            if (nearestTree && Math.random() < 0.3) {
+              // Chop tree for wood
+              const treeIndex = newItems.findIndex(i => i.id === nearestTree.id);
+              if (treeIndex !== -1) {
+                newItems.splice(treeIndex, 1);
+                newWood += 3;
+                toast.success("🪓 Chopped tree for wood!");
+              }
+            }
+
+            // Build house if enough wood
+            if (newWood >= 5 && Math.random() < 0.2) {
+              newItems.push({
+                id: `house-${Date.now()}-${Math.random()}`,
+                type: "house",
+                x: item.x + 30,
+                y: item.y + 30,
+                icon: Home,
+              });
+              newWood -= 5;
+              toast.success("🏠 Built a house!");
+            }
+          }
+
+          // Find nearest lake for water
+          const nearestLake = lakes.find(lake => {
+            const distance = Math.sqrt(Math.pow(lake.x - item.x, 2) + Math.pow(lake.y - item.y, 2));
+            return distance < 40;
+          });
+
+          if (nearestLake && newThirst < 80) {
+            newWater += 20;
+            newThirst = Math.min(100, newThirst + 20);
+          }
+
+          // Try to find food from trees
+          const nearbyTree = trees.find(tree => {
+            const distance = Math.sqrt(Math.pow(tree.x - item.x, 2) + Math.pow(tree.y - item.y, 2));
+            return distance < 40;
+          });
+
+          if (nearbyTree && Math.random() < 0.1) {
+            newFood += 10;
+            toast.success("🍎 Found food from tree!");
+          }
+
+          // Consume food if hungry
+          if (newHunger < 80 && newFood > 0) {
+            const foodToEat = Math.min(newFood, 30);
+            newFood -= foodToEat;
+            newHunger = Math.min(100, newHunger + foodToEat);
+          }
 
           // Grow babies and transform them into adults
           const currentAge = item.age ?? 100;
@@ -158,8 +247,26 @@ export const VillageMaker = () => {
             showSpeech: shouldSpeak ? true : false,
             age: newAge,
             size: newSize,
+            wood: newWood,
+            food: newFood,
+            water: newWater,
+            hunger: newHunger,
+            thirst: newThirst,
           };
-        });
+        }).filter(item => item !== null) as VillageItem[];
+
+        // Grow trees randomly if there are people
+        if (livingItems.length > 0 && Math.random() < 0.15) {
+          const randomPerson = livingItems[Math.floor(Math.random() * livingItems.length)];
+          const newTree: VillageItem = {
+            id: `tree-${Date.now()}-${Math.random()}`,
+            type: "tree",
+            x: Math.max(50, Math.min(randomPerson.x + (Math.random() - 0.5) * 100, 750)),
+            y: Math.max(50, Math.min(randomPerson.y + (Math.random() - 0.5) * 100, 550)),
+            icon: Trees,
+          };
+          newItems.push(newTree);
+        }
 
         // Check for breeding (when two compatible adults are close)
         const adults = newItems.filter(item => (item.age ?? 100) >= 100);
@@ -226,18 +333,26 @@ export const VillageMaker = () => {
     const item = ITEMS.find(i => i.type === draggedItem);
     if (!item) return;
 
-    setPlacedItems([
-      ...placedItems,
-      {
-        id: `${draggedItem}-${Date.now()}`,
-        type: draggedItem,
-        x,
-        y,
-        icon: item.icon,
-        age: 100,
-        size: 1,
-      },
-    ]);
+    const newItem: VillageItem = {
+      id: `${draggedItem}-${Date.now()}`,
+      type: draggedItem,
+      x,
+      y,
+      icon: item.icon,
+      age: 100,
+      size: 1,
+    };
+
+    // Initialize resources for living items
+    if (item.isLiving) {
+      newItem.hunger = 100;
+      newItem.thirst = 100;
+      newItem.wood = 0;
+      newItem.food = 0;
+      newItem.water = 0;
+    }
+
+    setPlacedItems([...placedItems, newItem]);
 
     setDraggedItem(null);
     toast.success(`${item.label} added to village!`);
@@ -432,7 +547,18 @@ export const VillageMaker = () => {
                       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-slate-800 rotate-45 border-r-2 border-b-2 border-primary/20"></div>
                     </div>
                   )}
+                  {itemConfig?.isLiving && (item.hunger !== undefined || item.wood !== undefined) && (
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[8px] whitespace-nowrap bg-black/70 text-white px-1 rounded">
+                      {item.hunger !== undefined && `🍖${Math.round(item.hunger)}`}
+                      {item.thirst !== undefined && ` 💧${Math.round(item.thirst)}`}
+                      {item.wood !== undefined && item.wood > 0 && ` 🪵${item.wood}`}
+                      {item.food !== undefined && item.food > 0 && ` 🍎${item.food}`}
+                    </div>
+                  )}
                   <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
+                  {item.type === "lake" && (
+                    <div className="absolute inset-0 bg-blue-400/30 rounded-full -z-10 scale-[3]" />
+                  )}
                 </div>
               );
             })}
