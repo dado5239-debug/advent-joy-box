@@ -241,16 +241,47 @@ export const VillageMaker = () => {
             }
           }
           
-          // Day time - leave house if inside
+          // Day time - dynamic house exit/entry
           if (!isNight && item.currentHouse) {
-            const house = houses.find(h => h.id === item.currentHouse);
-            if (house) {
+            // Some people stay inside playing with toys
+            if (newToys > 0 && Math.random() < 0.4) {
               return {
                 ...item,
-                currentHouse: undefined,
-                x: house.x + (Math.random() - 0.5) * 50,
-                y: house.y + (Math.random() - 0.5) * 50,
-                speech: "☀️ Good morning!",
+                hunger: newHunger,
+                thirst: newThirst,
+                speech: "🎮 Playing with toys!",
+                showSpeech: Math.random() < 0.1,
+              };
+            }
+            
+            // Random chance to leave house during day
+            if (Math.random() < 0.3) {
+              const house = houses.find(h => h.id === item.currentHouse);
+              if (house) {
+                return {
+                  ...item,
+                  currentHouse: undefined,
+                  x: house.x + (Math.random() - 0.5) * 50,
+                  y: house.y + (Math.random() - 0.5) * 50,
+                  speech: "☀️ Going outside!",
+                  showSpeech: true,
+                };
+              }
+            }
+          }
+          
+          // During day, people can randomly enter houses
+          if (!isNight && !item.currentHouse && Math.random() < 0.05) {
+            const nearbyHouse = houses.find(house => {
+              const distance = Math.sqrt(Math.pow(house.x - item.x, 2) + Math.pow(house.y - item.y, 2));
+              return distance < 60;
+            });
+            
+            if (nearbyHouse) {
+              return {
+                ...item,
+                currentHouse: nearbyHouse.id,
+                speech: "🏠 Going inside...",
                 showSpeech: true,
               };
             }
@@ -606,7 +637,7 @@ export const VillageMaker = () => {
       newItem.hunger = 100;
       newItem.thirst = 100;
       newItem.wood = 0;
-      newItem.food = 0;
+      newItem.food = 50; // Start with 50 food
       newItem.water = 0;
       newItem.toys = 0;
     }
@@ -890,6 +921,40 @@ export const VillageMaker = () => {
                     }}
                   >
                     <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
+                  </div>
+                );
+              })}
+              
+              {/* People inside this house */}
+              {placedItems.filter(p => p.currentHouse === viewingHouse).map((person) => {
+                const PersonIcon = person.icon;
+                const personConfig = ITEMS.find(i => i.type === person.type);
+                const scale = person.size ?? 1;
+                const iconSize = 32 * scale;
+                
+                return (
+                  <div
+                    key={person.id}
+                    className="absolute transition-all duration-1000"
+                    style={{ 
+                      left: 200 + Math.random() * 200,
+                      top: 150 + Math.random() * 150,
+                      transform: `scale(${scale})`
+                    }}
+                  >
+                    {person.showSpeech && person.speech && (
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-3 py-1 rounded-full text-xs whitespace-nowrap shadow-lg border-2 border-primary/20 animate-fade-in">
+                        {person.speech}
+                      </div>
+                    )}
+                    <PersonIcon className={`w-8 h-8 ${personConfig?.color}`} />
+                    {personConfig?.isLiving && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[8px] whitespace-nowrap bg-black/70 text-white px-1 rounded">
+                        {person.hunger !== undefined && `🍖${Math.round(person.hunger)}`}
+                        {person.thirst !== undefined && ` 💧${Math.round(person.thirst)}`}
+                        {person.toys !== undefined && person.toys > 0 && ` 🎮${person.toys}`}
+                      </div>
+                    )}
                   </div>
                 );
               })}
