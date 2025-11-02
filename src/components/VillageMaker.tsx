@@ -306,7 +306,8 @@ export const VillageMaker = () => {
           }
 
           // People die at 93 years old and drop 30 food
-          if ((item.type === "person" || item.type === "man" || item.type === "woman" || item.type === "teenager" || item.type === "kid") && newLifeYears >= 93) {
+          const humanTypes = ["person", "man", "woman", "teenager", "kid", "baby", "teacher", "police", "firefighter", "bishop", "youtuber", "robber"];
+          if (humanTypes.includes(item.type) && newLifeYears >= 93) {
             toast.error(`${item.name || 'Someone'} died of old age at 93! 💀`);
             // Drop 30 food at death location (3 items x 10 food each)
             for (let i = 0; i < 3; i++) {
