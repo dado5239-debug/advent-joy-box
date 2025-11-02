@@ -53,6 +53,8 @@ const ITEMS = [
   { type: "church", icon: Church, label: "Church", color: "text-amber-700", isLiving: false },
   { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false, canBeOpened: true },
   { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300", isLiving: false },
+  { type: "snow", icon: Snowflake, label: "Snow", color: "text-blue-200", isLiving: false },
+  { type: "snowman", icon: Snowflake, label: "Snowman", color: "text-white", isLiving: false },
   { type: "star", icon: Star, label: "Star", color: "text-yellow-400", isLiving: false },
   { type: "lake", icon: Snowflake, label: "Lake", color: "text-blue-500", isLiving: false, isWaterSource: true },
   { type: "food-item", icon: Apple, label: "Food", color: "text-red-400", isLiving: false, isFood: true },
@@ -167,6 +169,8 @@ export const VillageMaker = () => {
   const [editingName, setEditingName] = useState("");
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
+  const [tvNewsOpen, setTvNewsOpen] = useState(false);
+  const [villageNews, setVillageNews] = useState<string[]>([]);
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -851,6 +855,102 @@ export const VillageMaker = () => {
           }
         }
         
+        // Crafting: Snowflakes -> Snow
+        const snowflakes = newItems.filter(item => item.type === "snowflake");
+        const snowflakeGroups: string[][] = [];
+        
+        snowflakes.forEach((flake1, i) => {
+          const nearbyFlakes = [flake1.id];
+          snowflakes.forEach((flake2, j) => {
+            if (i !== j) {
+              const distance = Math.sqrt(
+                Math.pow(flake1.x - flake2.x, 2) + Math.pow(flake1.y - flake2.y, 2)
+              );
+              if (distance < 60) {
+                nearbyFlakes.push(flake2.id);
+              }
+            }
+          });
+          
+          if (nearbyFlakes.length >= 3) {
+            const groupKey = nearbyFlakes.sort().join(',');
+            if (!snowflakeGroups.some(g => g.sort().join(',') === groupKey)) {
+              snowflakeGroups.push(nearbyFlakes.slice(0, 3));
+            }
+          }
+        });
+        
+        snowflakeGroups.forEach(group => {
+          const flakesToRemove = newItems.filter(item => group.includes(item.id));
+          if (flakesToRemove.length >= 3) {
+            const centerX = flakesToRemove.reduce((sum, f) => sum + f.x, 0) / flakesToRemove.length;
+            const centerY = flakesToRemove.reduce((sum, f) => sum + f.y, 0) / flakesToRemove.length;
+            
+            // Remove snowflakes
+            newItems = newItems.filter(item => !group.includes(item.id));
+            
+            // Create snow
+            const snow: VillageItem = {
+              id: `snow-${Date.now()}-${Math.random()}`,
+              type: "snow",
+              x: centerX,
+              y: centerY,
+              icon: Snowflake,
+            };
+            
+            newItems.push(snow);
+            toast.success("❄️ Snowflakes combined into snow!");
+          }
+        });
+        
+        // Crafting: Snow -> Snowman
+        const snowItems = newItems.filter(item => item.type === "snow");
+        const snowGroups: string[][] = [];
+        
+        snowItems.forEach((snow1, i) => {
+          const nearbySnow = [snow1.id];
+          snowItems.forEach((snow2, j) => {
+            if (i !== j) {
+              const distance = Math.sqrt(
+                Math.pow(snow1.x - snow2.x, 2) + Math.pow(snow1.y - snow2.y, 2)
+              );
+              if (distance < 60) {
+                nearbySnow.push(snow2.id);
+              }
+            }
+          });
+          
+          if (nearbySnow.length >= 3) {
+            const groupKey = nearbySnow.sort().join(',');
+            if (!snowGroups.some(g => g.sort().join(',') === groupKey)) {
+              snowGroups.push(nearbySnow.slice(0, 3));
+            }
+          }
+        });
+        
+        snowGroups.forEach(group => {
+          const snowToRemove = newItems.filter(item => group.includes(item.id));
+          if (snowToRemove.length >= 3) {
+            const centerX = snowToRemove.reduce((sum, s) => sum + s.x, 0) / snowToRemove.length;
+            const centerY = snowToRemove.reduce((sum, s) => sum + s.y, 0) / snowToRemove.length;
+            
+            // Remove snow
+            newItems = newItems.filter(item => !group.includes(item.id));
+            
+            // Create snowman
+            const snowman: VillageItem = {
+              id: `snowman-${Date.now()}-${Math.random()}`,
+              type: "snowman",
+              x: centerX,
+              y: centerY,
+              icon: Snowflake,
+            };
+            
+            newItems.push(snowman);
+            toast.success("⛄ Snow combined into a snowman!");
+          }
+        });
+        
         return newItems;
       });
     }, 2000);
@@ -1358,20 +1458,48 @@ export const VillageMaker = () => {
                     style={{ left: item.x - 16, top: item.y - 16 }}
                     onClick={(e) => {
                       e.stopPropagation();
+                      
+                      // Phone functionality
                       if (item.type === "phone") {
                         setPhoneOpen(true);
-                      } else {
-                        setPlacedItems(prev => prev.map(house => {
-                          if (house.id === viewingHouse) {
-                            return {
-                              ...house,
-                              interior: house.interior?.filter(i => i.id !== item.id) || []
-                            };
-                          }
-                          return house;
-                        }));
-                        toast.info("Item removed");
+                        return;
                       }
+                      
+                      // TV functionality - show village news
+                      if (item.type === "tv") {
+                        const livingCount = placedItems.filter(i => ITEMS.find(t => t.type === i.type)?.isLiving).length;
+                        const houseCount = placedItems.filter(i => i.type === "house").length;
+                        const treeCount = placedItems.filter(i => i.type === "tree").length;
+                        const currentTime = timeOfDay >= 20 || timeOfDay < 6 ? "night" : "day";
+                        
+                        const news = [
+                          `📺 VILLAGE NEWS - Year ${currentYear}`,
+                          `🏘️ Population: ${livingCount} residents`,
+                          `🏠 Housing: ${houseCount} homes`,
+                          `🌲 Nature: ${treeCount} trees`,
+                          `⏰ Current time: ${timeOfDay}:00 (${currentTime})`,
+                          `🎄 Season: Christmas season is here!`,
+                          placedItems.some(i => i.isMarried) ? `💍 Recent marriages in the village!` : '',
+                          placedItems.some(i => i.type === "baby") ? `👶 New babies born recently!` : '',
+                        ].filter(Boolean);
+                        
+                        setVillageNews(news);
+                        setTvNewsOpen(true);
+                        toast.info("📺 Watching village news...");
+                        return;
+                      }
+                      
+                      // Remove item
+                      setPlacedItems(prev => prev.map(house => {
+                        if (house.id === viewingHouse) {
+                          return {
+                            ...house,
+                            interior: house.interior?.filter(i => i.id !== item.id) || []
+                          };
+                        }
+                        return house;
+                      }));
+                      toast.info("Item removed");
                     }}
                   >
                     <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
@@ -1671,6 +1799,25 @@ export const VillageMaker = () => {
         </div>
       </DialogContent>
       <PhoneModal isOpen={phoneOpen} onClose={() => setPhoneOpen(false)} />
+      
+      {/* TV News Dialog */}
+      <Dialog open={tvNewsOpen} onOpenChange={setTvNewsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tv className="w-5 h-5" />
+              Village News Channel
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            {villageNews.map((newsItem, idx) => (
+              <div key={idx} className="text-sm py-1 border-b border-slate-300 dark:border-slate-600 last:border-0">
+                {newsItem}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
