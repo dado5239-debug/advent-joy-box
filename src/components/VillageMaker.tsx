@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet } from "lucide-react";
+import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { useVillageSounds } from "@/hooks/useVillageSounds";
@@ -24,18 +24,20 @@ interface VillageItem {
   water?: number; // water inventory
   hunger?: number; // 100 = full, 0 = starving
   thirst?: number; // 100 = hydrated, 0 = dehydrated
+  toys?: number; // toys inventory
 }
 
 const ITEMS = [
   { type: "house", icon: Home, label: "House", color: "text-red-500", isLiving: false },
   { type: "tree", icon: Trees, label: "Tree", color: "text-green-600", isLiving: false, canBeChopped: true },
   { type: "church", icon: Church, label: "Church", color: "text-amber-700", isLiving: false },
-  { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false },
+  { type: "gift", icon: Gift, label: "Gift", color: "text-pink-500", isLiving: false, canBeOpened: true },
   { type: "snowflake", icon: Snowflake, label: "Snowflake", color: "text-blue-300", isLiving: false },
   { type: "star", icon: Star, label: "Star", color: "text-yellow-400", isLiving: false },
   { type: "lake", icon: Snowflake, label: "Lake", color: "text-blue-500", isLiving: false, isWaterSource: true },
   { type: "food-item", icon: Apple, label: "Food", color: "text-red-400", isLiving: false, isFood: true },
   { type: "water-item", icon: Droplet, label: "Water", color: "text-blue-400", isLiving: false, isWater: true },
+  { type: "toy", icon: Gamepad2, label: "Toy", color: "text-purple-400", isLiving: false, isToy: true },
   { type: "person", icon: User, label: "Person", color: "text-blue-500", isLiving: true, babyType: "baby" },
   { type: "family", icon: Users, label: "Family", color: "text-purple-500", isLiving: true, babyType: "baby" },
   { type: "baby", icon: Baby, label: "Baby", color: "text-pink-400", isLiving: true, growsInto: "person" },
@@ -75,6 +77,8 @@ export const VillageMaker = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [startingYear, setStartingYear] = useState(new Date().getFullYear());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [exploreMode, setExploreMode] = useState(false);
+  const [playerPos, setPlayerPos] = useState({ x: 400, y: 300 });
   const { playSound } = useVillageSounds();
 
   useEffect(() => {
@@ -91,6 +95,39 @@ export const VillageMaker = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // WASD controls for explore mode
+  useEffect(() => {
+    if (!exploreMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const speed = 10;
+      setPlayerPos(prev => {
+        let newX = prev.x;
+        let newY = prev.y;
+
+        switch(e.key.toLowerCase()) {
+          case 'w':
+            newY = Math.max(50, prev.y - speed);
+            break;
+          case 'a':
+            newX = Math.max(50, prev.x - speed);
+            break;
+          case 's':
+            newY = Math.min(550, prev.y + speed);
+            break;
+          case 'd':
+            newX = Math.min(750, prev.x + speed);
+            break;
+        }
+
+        return { x: newX, y: newY };
+      });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [exploreMode]);
+
   // Animation loop for living items
   useEffect(() => {
     const interval = setInterval(() => {
@@ -104,6 +141,8 @@ export const VillageMaker = () => {
         const lakes = newItems.filter(item => item.type === "lake");
         const foodItems = newItems.filter(item => item.type === "food-item");
         const waterItems = newItems.filter(item => item.type === "water-item");
+        const presents = newItems.filter(item => item.type === "gift");
+        const toyItems = newItems.filter(item => item.type === "toy");
         
         // Update existing items
         newItems = newItems.map(item => {
@@ -116,6 +155,7 @@ export const VillageMaker = () => {
           const currentWood = item.wood ?? 0;
           const currentFood = item.food ?? 0;
           const currentWater = item.water ?? 0;
+          const currentToys = item.toys ?? 0;
 
           // Decrease hunger and thirst over time
           let newHunger = Math.max(0, currentHunger - 1);
@@ -123,6 +163,7 @@ export const VillageMaker = () => {
           let newWood = currentWood;
           let newFood = currentFood;
           let newWater = currentWater;
+          let newToys = currentToys;
 
           // Die if starving or dehydrated
           if (newHunger <= 0 || newThirst <= 0) {
@@ -162,6 +203,21 @@ export const VillageMaker = () => {
               });
               newWood -= 5;
               toast.success("🏠 Built a house!");
+            }
+
+            // Break presents for toys
+            const nearestPresent = presents.find(present => {
+              const distance = Math.sqrt(Math.pow(present.x - item.x, 2) + Math.pow(present.y - item.y, 2));
+              return distance < 40;
+            });
+
+            if (nearestPresent && Math.random() < 0.3) {
+              const presentIndex = newItems.findIndex(i => i.id === nearestPresent.id);
+              if (presentIndex !== -1) {
+                newItems.splice(presentIndex, 1);
+                newToys += 2;
+                toast.success("🎁 Opened present and found toys!");
+              }
             }
           }
 
@@ -204,6 +260,21 @@ export const VillageMaker = () => {
               newWater += 30;
               newThirst = Math.min(100, newThirst + 30);
               toast.success("💧 Picked up water!");
+            }
+          }
+
+          // Pick up toy items
+          const nearbyToy = toyItems.find(toy => {
+            const distance = Math.sqrt(Math.pow(toy.x - item.x, 2) + Math.pow(toy.y - item.y, 2));
+            return distance < 40;
+          });
+
+          if (nearbyToy) {
+            const toyIndex = newItems.findIndex(i => i.id === nearbyToy.id);
+            if (toyIndex !== -1) {
+              newItems.splice(toyIndex, 1);
+              newToys += 1;
+              toast.success("🎮 Picked up toy!");
             }
           }
 
@@ -287,6 +358,7 @@ export const VillageMaker = () => {
             water: newWater,
             hunger: newHunger,
             thirst: newThirst,
+            toys: newToys,
           };
         }).filter(item => item !== null) as VillageItem[];
 
@@ -385,6 +457,7 @@ export const VillageMaker = () => {
       newItem.wood = 0;
       newItem.food = 0;
       newItem.water = 0;
+      newItem.toys = 0;
     }
 
     setPlacedItems([...placedItems, newItem]);
@@ -491,6 +564,14 @@ export const VillageMaker = () => {
               className="flex-1"
             />
             <Button
+              onClick={() => setExploreMode(!exploreMode)}
+              variant={exploreMode ? "default" : "outline"}
+              className="gap-2"
+            >
+              {exploreMode ? <Hammer className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {exploreMode ? "Build Mode" : "Explore Mode"}
+            </Button>
+            <Button
               onClick={saveVillage}
               disabled={isSaving || placedItems.length === 0}
               className="gap-2"
@@ -520,7 +601,8 @@ export const VillageMaker = () => {
         </div>
 
         <div className="flex-1 flex gap-4 overflow-hidden">
-          {/* Toolbox */}
+          {/* Toolbox - Hidden in explore mode */}
+          {!exploreMode && (
           <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
             <p className="text-sm font-semibold mb-3">Drag items to canvas:</p>
             {ITEMS.map((item) => (
@@ -543,6 +625,7 @@ export const VillageMaker = () => {
               Clear Village
             </Button>
           </div>
+          )}
 
           {/* Canvas */}
           <div
@@ -551,10 +634,32 @@ export const VillageMaker = () => {
             onDragOver={handleDragOver}
             className="flex-1 relative bg-gradient-to-b from-blue-100 to-white dark:from-blue-950 dark:to-slate-900 rounded-lg border-2 border-dashed border-primary/30 overflow-hidden"
             style={{ minHeight: "400px" }}
+            tabIndex={0}
           >
+            {exploreMode && (
+              <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm z-10">
+                Use <span className="font-bold">WASD</span> to move around the village
+              </div>
+            )}
             {/* Snow ground */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent dark:from-slate-100 dark:to-transparent" />
             
+            {/* Player in explore mode */}
+            {exploreMode && (
+              <div
+                className="absolute z-20"
+                style={{
+                  left: playerPos.x - 16,
+                  top: playerPos.y - 16,
+                }}
+              >
+                <User className="w-8 h-8 text-yellow-400 animate-pulse" />
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                  YOU
+                </div>
+              </div>
+            )}
+
             {placedItems.map((item) => {
               const ItemIcon = item.icon;
               const itemConfig = ITEMS.find(i => i.type === item.type);
@@ -565,15 +670,17 @@ export const VillageMaker = () => {
               return (
                 <div
                   key={item.id}
-                  className="absolute cursor-pointer hover:scale-110 transition-all duration-1000 ease-in-out"
+                  className={`absolute transition-all duration-1000 ease-in-out ${!exploreMode ? 'cursor-pointer hover:scale-110' : ''}`}
                   style={{ 
                     left: item.x - offset, 
                     top: item.y - offset,
                     transform: `scale(${scale})`
                   }}
                   onClick={() => {
-                    setPlacedItems(placedItems.filter(i => i.id !== item.id));
-                    toast.info("Item removed");
+                    if (!exploreMode) {
+                      setPlacedItems(placedItems.filter(i => i.id !== item.id));
+                      toast.info("Item removed");
+                    }
                   }}
                 >
                   {item.showSpeech && item.speech && (
@@ -588,6 +695,7 @@ export const VillageMaker = () => {
                       {item.thirst !== undefined && ` 💧${Math.round(item.thirst)}`}
                       {item.wood !== undefined && item.wood > 0 && ` 🪵${item.wood}`}
                       {item.food !== undefined && item.food > 0 && ` 🍎${item.food}`}
+                      {item.toys !== undefined && item.toys > 0 && ` 🎮${item.toys}`}
                     </div>
                   )}
                   <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
@@ -598,7 +706,7 @@ export const VillageMaker = () => {
               );
             })}
 
-            {placedItems.length === 0 && (
+            {placedItems.length === 0 && !exploreMode && (
               <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                 <p className="text-center">
                   Drag items from the left to build your village!<br />
