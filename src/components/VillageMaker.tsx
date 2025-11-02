@@ -1742,6 +1742,35 @@ export const VillageMaker = () => {
                     style={{ left: item.x - 16, top: item.y - 16 }}
                     onClick={(e) => {
                       e.stopPropagation();
+                      
+                      // Book functionality
+                      if (item.type === "book") {
+                        const bookTexts = [
+                          "Once upon a time in a snowy village, families gathered around warm fires...",
+                          "The art of woodworking: A guide to building beautiful homes from trees...",
+                          "Tales from the winter: Stories of survival and community...",
+                          "The Village Chronicles: Life through the seasons..."
+                        ];
+                        setBookContent(bookTexts[Math.floor(Math.random() * bookTexts.length)]);
+                        setBookOpen(true);
+                        toast.info("📖 Reading book...");
+                        return;
+                      }
+                      
+                      // Bible functionality
+                      if (item.type === "bible") {
+                        const bibleVerses = [
+                          "\"Love thy neighbor as thyself\" - A message of kindness and community",
+                          "\"In everything, do to others what you would have them do to you\" - The Golden Rule",
+                          "\"Blessed are the peacemakers, for they will be called children of God\"",
+                          "\"For where two or three gather in my name, there am I with them\""
+                        ];
+                        setBookContent(bibleVerses[Math.floor(Math.random() * bibleVerses.length)]);
+                        setBookOpen(true);
+                        toast.info("📖 Reading the Bible...");
+                        return;
+                      }
+                      
                       setPlacedItems(prev => prev.map(church => {
                         if (church.id === viewingChurch) {
                           return {
@@ -1991,6 +2020,21 @@ export const VillageMaker = () => {
                     style={{ left: item.x - 16, top: item.y - 16 }}
                     onClick={(e) => {
                       e.stopPropagation();
+                      
+                      // Book functionality
+                      if (item.type === "book") {
+                        const bookTexts = [
+                          "Once upon a time in a snowy village, families gathered around warm fires...",
+                          "The art of woodworking: A guide to building beautiful homes from trees...",
+                          "Tales from the winter: Stories of survival and community...",
+                          "The Village Chronicles: Life through the seasons..."
+                        ];
+                        setBookContent(bookTexts[Math.floor(Math.random() * bookTexts.length)]);
+                        setBookOpen(true);
+                        toast.info("📖 Reading book...");
+                        return;
+                      }
+                      
                       setPlacedItems(prev => prev.map(school => {
                         if (school.id === viewingSchool) {
                           return {
