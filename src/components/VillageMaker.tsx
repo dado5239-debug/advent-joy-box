@@ -692,22 +692,6 @@ export const VillageMaker = () => {
           };
         }).filter(item => item !== null) as VillageItem[];
 
-        // Grow trees randomly if there are people (max 10 trees)
-        const currentTreeCount = newItems.filter(item => item.type === "tree").length;
-        // Higher spawn rate when below max trees (to replace chopped ones)
-        const treeSpawnChance = currentTreeCount < 10 ? 0.25 : 0;
-        if (livingItems.length > 0 && currentTreeCount < 10 && Math.random() < treeSpawnChance) {
-          const randomPerson = livingItems[Math.floor(Math.random() * livingItems.length)];
-          const newTree: VillageItem = {
-            id: `tree-${Date.now()}-${Math.random()}`,
-            type: "tree",
-            x: Math.max(50, Math.min(randomPerson.x + (Math.random() - 0.5) * 100, 750)),
-            y: Math.max(50, Math.min(randomPerson.y + (Math.random() - 0.5) * 100, 550)),
-            icon: Trees,
-          };
-          newItems.push(newTree);
-        }
-
         // Check for breeding (when two compatible adults are close)
         const adults = newItems.filter(item => (item.age ?? 100) >= 100);
         for (let i = 0; i < adults.length; i++) {
@@ -772,6 +756,16 @@ export const VillageMaker = () => {
 
     const item = ITEMS.find(i => i.type === draggedItem);
     if (!item) return;
+
+    // Check tree limit (max 10 trees)
+    if (draggedItem === "tree") {
+      const currentTreeCount = placedItems.filter(i => i.type === "tree").length;
+      if (currentTreeCount >= 10) {
+        toast.error("Maximum 10 trees allowed in village!");
+        setDraggedItem(null);
+        return;
+      }
+    }
 
     const newItem: VillageItem = {
       id: `${draggedItem}-${Date.now()}`,
