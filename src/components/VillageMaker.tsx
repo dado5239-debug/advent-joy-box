@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Home, Trees, Snowflake, Star, Church, Gift, User, Users, Baby, Dog, Cat, Bird, Rabbit, Squirrel, Save, Apple, Droplet, Gamepad2, Play, Hammer, Moon, Sun, Armchair, Lamp, Bed, TentTree, Edit2, MapPin, Tv, Frame, Refrigerator, Smartphone, School, BookOpen, Pencil, Calculator, Map, Shield, Flame, Cross, Video, Building } from "lucide-react";
@@ -112,6 +112,14 @@ const SCHOOL_ITEMS = [
   { type: "calculator", icon: Calculator, label: "Calculator", color: "text-gray-600" },
 ];
 
+const CHURCH_ITEMS = [
+  { type: "altar", icon: Cross, label: "Altar", color: "text-amber-700" },
+  { type: "pew", icon: Armchair, label: "Pew", color: "text-brown-700" },
+  { type: "candle", icon: Lamp, label: "Candle", color: "text-yellow-500" },
+  { type: "bible", icon: BookOpen, label: "Bible", color: "text-purple-700" },
+  { type: "cross-decor", icon: Cross, label: "Cross", color: "text-amber-800" },
+];
+
 const SPEECH_OPTIONS = [
   "Merry Christmas! 🎄",
   "Happy Holidays! ⛄",
@@ -174,6 +182,7 @@ export const VillageMaker = () => {
   const [playerPos, setPlayerPos] = useState({ x: 400, y: 300 });
   const [viewingHouse, setViewingHouse] = useState<string | null>(null);
   const [viewingSchool, setViewingSchool] = useState<string | null>(null);
+  const [viewingChurch, setViewingChurch] = useState<string | null>(null);
   const [timeOfDay, setTimeOfDay] = useState(12); // 0-24 hours, 12 = noon
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -1232,8 +1241,8 @@ export const VillageMaker = () => {
       size: 1,
     };
     
-    // Initialize house/school with empty interior
-    if (draggedItem === "house" || draggedItem === "school") {
+    // Initialize house/school/church with empty interior
+    if (draggedItem === "house" || draggedItem === "school" || draggedItem === "church") {
       newItem.interior = [];
     }
 
@@ -1291,6 +1300,7 @@ export const VillageMaker = () => {
     setTimeOfDay(12);
     setViewingHouse(null);
     setViewingSchool(null);
+    setViewingChurch(null);
     toast.info("Village cleared!");
   };
   
@@ -1306,16 +1316,22 @@ export const VillageMaker = () => {
     toast.info("Viewing school interior. Watch students learn!");
   };
   
+  const handleChurchClick = (churchId: string) => {
+    if (!exploreMode) return;
+    setViewingChurch(churchId);
+    toast.info("Viewing church interior. A place for prayer.");
+  };
+  
   const handleInteriorDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const buildingId = viewingHouse || viewingSchool;
+    const buildingId = viewingHouse || viewingSchool || viewingChurch;
     if (!draggedItem || !buildingId) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const itemList = viewingSchool ? SCHOOL_ITEMS : INTERIOR_ITEMS;
+    const itemList = viewingSchool ? SCHOOL_ITEMS : viewingChurch ? CHURCH_ITEMS : INTERIOR_ITEMS;
     const item = itemList.find(i => i.type === draggedItem);
     if (!item) return;
 
@@ -1336,7 +1352,7 @@ export const VillageMaker = () => {
     }));
 
     setDraggedItem(null);
-    toast.success(`${item.label} added to ${viewingSchool ? 'school' : 'house'}!`);
+    toast.success(`${item.label} added to ${viewingSchool ? 'school' : viewingChurch ? 'church' : 'house'}!`);
   };
 
   const saveVillage = async () => {
@@ -1482,7 +1498,7 @@ export const VillageMaker = () => {
 
         <div className="flex-1 flex gap-4 overflow-hidden">
           {/* Toolbox */}
-          {!exploreMode && !viewingHouse && !viewingSchool && (
+          {!exploreMode && !viewingHouse && !viewingSchool && !viewingChurch && (
           <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
             <p className="text-sm font-semibold mb-3">Drag items to canvas:</p>
             {ITEMS.map((item) => (
@@ -1508,7 +1524,7 @@ export const VillageMaker = () => {
           )}
           
           {/* People List Panel */}
-          {!viewingHouse && !viewingSchool && placedItems.some(item => ITEMS.find(i => i.type === item.type)?.isLiving) && (
+          {!viewingHouse && !viewingSchool && !viewingChurch && placedItems.some(item => ITEMS.find(i => i.type === item.type)?.isLiving) && (
           <div className="w-64 space-y-2 overflow-y-auto p-3 bg-muted rounded-lg max-h-[500px]">
             <p className="text-sm font-semibold mb-3 flex items-center gap-2">
               <Users className="w-4 h-4" />
@@ -1670,9 +1686,129 @@ export const VillageMaker = () => {
             </Button>
           </div>
           )}
+          
+          {/* Church Interior Toolbox */}
+          {viewingChurch && (
+          <div className="w-48 space-y-2 overflow-y-auto p-2 bg-muted rounded-lg">
+            <p className="text-sm font-semibold mb-3">Furnish church:</p>
+            {CHURCH_ITEMS.map((item) => (
+              <div
+                key={item.type}
+                draggable
+                onDragStart={() => handleDragStart(item.type)}
+                className="flex items-center gap-2 p-3 bg-card rounded-lg cursor-move hover:bg-accent transition-colors border-2 border-border"
+              >
+                <item.icon className={`w-6 h-6 ${item.color}`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewingChurch(null)}
+              className="w-full mt-4"
+            >
+              Exit Church
+            </Button>
+          </div>
+          )}
 
           {/* Canvas or Building Interior */}
-          {viewingHouse ? (
+          {viewingChurch ? (
+            <div
+              onDrop={handleInteriorDrop}
+              onDragOver={handleDragOver}
+              className="flex-1 relative bg-amber-100 dark:bg-amber-950 rounded-lg border-2 border-dashed border-primary/30 overflow-hidden"
+              style={{ minHeight: "400px" }}
+              onClick={() => setViewingChurch(null)}
+            >
+              <div className="absolute top-2 left-2 bg-black/70 text-white px-3 py-2 rounded-lg text-sm z-10">
+                <Church className="w-4 h-4 inline mr-2" />
+                Church Interior - A place for prayer
+              </div>
+              
+              {/* Church interior items */}
+              {placedItems.find(c => c.id === viewingChurch)?.interior?.map((item) => {
+                const ItemIcon = item.icon;
+                const itemConfig = CHURCH_ITEMS.find(i => i.type === item.type);
+                
+                return (
+                  <div
+                    key={item.id}
+                    className="absolute cursor-pointer hover:scale-110 transition-transform"
+                    style={{ left: item.x - 16, top: item.y - 16 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlacedItems(prev => prev.map(church => {
+                        if (church.id === viewingChurch) {
+                          return {
+                            ...church,
+                            interior: church.interior?.filter(i => i.id !== item.id) || []
+                          };
+                        }
+                        return church;
+                      }));
+                      toast.info("Item removed");
+                    }}
+                  >
+                    <ItemIcon className={`w-8 h-8 ${itemConfig?.color}`} />
+                  </div>
+                );
+              })}
+              
+              {/* People inside church */}
+              {placedItems.filter(p => p.currentChurch === viewingChurch).map((person) => {
+                const PersonIcon = person.icon;
+                const personConfig = ITEMS.find(i => i.type === person.type);
+                const scale = person.size ?? 1;
+                
+                return (
+                  <div
+                    key={person.id}
+                    className="absolute transition-all duration-1000"
+                    style={{ 
+                      left: 200 + Math.random() * 200,
+                      top: 150 + Math.random() * 150,
+                      transform: `scale(${scale})`
+                    }}
+                  >
+                    {person.showSpeech && person.speech && (
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-3 py-1 rounded-full text-xs whitespace-nowrap shadow-lg border-2 border-primary/20 animate-fade-in">
+                        {person.speech}
+                      </div>
+                    )}
+                    <PersonIcon className={`w-8 h-8 ${personConfig?.color}`} />
+                    {person.lifeYears !== undefined && (
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-blue-500 text-white px-1 rounded font-bold">
+                        {person.lifeYears}y {person.emotion && getEmotionEmoji(person.emotion)}
+                      </div>
+                    )}
+                    {person.job === "bishop" && (
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[10px] bg-purple-600 text-white px-2 rounded font-bold">
+                        ⛪ Bishop
+                      </div>
+                    )}
+                    {personConfig?.isLiving && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[8px] whitespace-nowrap bg-black/70 text-white px-1 rounded">
+                        {person.hunger !== undefined && `🍖${Math.round(person.hunger)}`}
+                        {person.thirst !== undefined && ` 💧${Math.round(person.thirst)}`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              
+              {(!placedItems.find(c => c.id === viewingChurch)?.interior || 
+                placedItems.find(c => c.id === viewingChurch)?.interior?.length === 0) && (
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                  <p className="text-center">
+                    Drag church items from the left!<br />
+                    <span className="text-sm">A sacred place for worship 🙏</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : viewingHouse ? (
             <div
               onDrop={handleInteriorDrop}
               onDragOver={handleDragOver}
@@ -1956,9 +2092,9 @@ export const VillageMaker = () => {
             )}
 
             {placedItems.map((item) => {
-              // Don't render people who are inside houses
+              // Don't render people who are inside houses, schools, or churches
               const itemConfig = ITEMS.find(i => i.type === item.type);
-              if (item.currentHouse) return null;
+              if (item.currentHouse || item.currentSchool || item.currentChurch) return null;
               
               const ItemIcon = item.icon;
               const scale = item.size ?? 1;
@@ -1969,7 +2105,7 @@ export const VillageMaker = () => {
                 <div
                   key={item.id}
                   className={`absolute transition-all duration-1000 ease-in-out ${
-                    exploreMode && (item.type === 'house' || item.type === 'school') ? 'cursor-pointer hover:scale-110 hover:ring-4 hover:ring-yellow-400' : 
+                    exploreMode && (item.type === 'house' || item.type === 'school' || item.type === 'church') ? 'cursor-pointer hover:scale-110 hover:ring-4 hover:ring-yellow-400' : 
                     !exploreMode ? 'cursor-pointer hover:scale-110' : ''
                   }`}
                   style={{ 
@@ -1982,6 +2118,8 @@ export const VillageMaker = () => {
                       handleHouseClick(item.id);
                     } else if (exploreMode && item.type === 'school') {
                       handleSchoolClick(item.id);
+                    } else if (exploreMode && item.type === 'church') {
+                      handleChurchClick(item.id);
                     } else if (!exploreMode) {
                       setPlacedItems(placedItems.filter(i => i.id !== item.id));
                       toast.info("Item removed");
@@ -2016,7 +2154,7 @@ export const VillageMaker = () => {
                   {item.type === "park" && (
                     <div className="absolute inset-0 bg-green-400/20 rounded-lg -z-10 scale-[4]" />
                   )}
-                  {(item.type === "house" || item.type === "school") && item.interior && item.interior.length > 0 && (
+                  {(item.type === "house" || item.type === "school" || item.type === "church") && item.interior && item.interior.length > 0 && (
                     <div className="absolute -top-2 -right-2 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                       {item.interior.length}
                     </div>
@@ -2047,6 +2185,7 @@ export const VillageMaker = () => {
               <Tv className="w-5 h-5" />
               Village News Channel
             </DialogTitle>
+            <DialogDescription>Current village news and statistics</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
             {villageNews.map((newsItem, idx) => (
